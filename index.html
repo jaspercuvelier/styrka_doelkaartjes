@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Doelkaartjes OV1-2</title>
+<link rel="icon" href="assets/doel-icoon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: brand band, short lead, two large doors (one per tool) */
+:root{--bg:#f4f6f8;--surface:#fff;--ink:#26303a;--muted:#5d6874;--line:#d9dfe5;--sky:#86afcf;--koers:#f07b3b;--accent:#2e6a9e;
+  --wonen:#f4c430;--werken:#7dcb86;--vrij:#86afcf;--over:#f59b57;--talent:#a98bd6;
+  --f:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.55 var(--f)}
+.brand{background:#fff;border-bottom:4px solid var(--sky);padding-top:env(safe-area-inset-top,0px)}
+.brand .in,.main{max-width:980px;margin:0 auto;padding-inline:16px}
+.brand .in{display:flex;align-items:center;gap:16px;padding-block:12px}
+.brand img.logo{height:48px}
+.brand img.koers{height:40px;margin-left:auto}
+@media (max-width:600px){.brand img.koers{display:none}.brand img.logo{height:36px}}
+.main{padding-block:36px 60px}
+h1{font-size:clamp(1.7rem,4vw,2.3rem);line-height:1.15;margin:0 0 .4rem;text-wrap:balance}
+.lead{color:var(--muted);max-width:60ch;margin:0 0 28px}
+.strip{display:flex;gap:6px;margin-bottom:28px}
+.strip span{height:8px;flex:1;border-radius:4px}
+.doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.door{display:grid;gap:8px;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px 22px 20px;border-top:8px solid var(--c)}
+.door:hover{border-color:var(--muted);border-top-color:var(--c)}
+.door:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.door h2{margin:0;font-size:1.35rem}
+.door p{margin:0;color:var(--muted)}
+.door .go{margin-top:6px;font-weight:700;color:var(--accent)}
+.who{font-size:.78rem;letter-spacing:.08em;font-weight:700;text-transform:uppercase;color:var(--muted)}
+footer{color:var(--muted);font-size:.85rem;margin-top:36px}
+</style>
+</head>
+<body>
+<div class="brand"><div class="in">
+  <img class="logo" src="assets/logo-styrka.png" alt="Styrka Secundair Onderwijs @waterkant">
+  <img class="koers" src="assets/jouw-koers.png" alt="Jouw koers, onze stroom">
+</div></div>
+<main class="main">
+  <h1>Doelkaartjes OV1-2</h1>
+  <p class="lead">168 ontwikkelingsdoelen, elk met een ik-zin en een prent die leerlingen zelf kunnen lezen.</p>
+  <div class="strip" aria-hidden="true"><span style="background:var(--wonen)"></span><span style="background:var(--werken)"></span><span style="background:var(--vrij)"></span><span style="background:var(--over)"></span><span style="background:var(--talent)"></span></div>
+  <div class="doors">
+    <a class="door" href="kaartjes/" style="--c:var(--wonen)">
+      <span class="who">Voor leerkrachten</span>
+      <h2>Doelkaartjes maken</h2>
+      <p>Kies per leerling de doelen en het talent, en maak er een PDF van om af te drukken. De tool onthoudt je leerlingen in deze browser.</p>
+      <span class="go">Naar de kaartjes →</span>
+    </a>
+    <a class="door" href="nakijken/" style="--c:var(--vrij)">
+      <span class="who">Voor het team</span>
+      <h2>Prenten nakijken</h2>
+      <p>Bekijk elke prent zoals een leerling ze ziet. Keur ze goed, of zeg wat er anders moet.</p>
+      <span class="go">Naar het nakijken →</span>
+    </a>
+  </div>
+  <footer>168 doelen, 168 met prent · bijgewerkt op 17/10/2026</footer>
+</main>
+</body>
+</html>

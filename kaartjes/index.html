@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Doelkaartjes maken</title>
+<link rel="icon" href="../assets/doel-icoon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: white brand band (Styrka logo + slogan); left rail = pupil list (the local database); right = pupil editor + live card preview */
+:root{
+  --bg:#f4f6f8; --surface:#ffffff; --ink:#26303a; --muted:#5d6874; --line:#d9dfe5;
+  --slate:#3f4a55; --sky:#86afcf; --koers:#f07b3b; --stroom:#f7c531;
+  --accent:#2e6a9e; --accent-ink:#ffffff; --danger:#b23a2b;
+  --wonen:#f4c430; --wonen-t:#fcefc0; --wonen-i:#8a6700;
+  --werken:#7dcb86; --werken-t:#ddf3df; --werken-i:#2f7f3c;
+  --vrij:#86afcf; --vrij-t:#dce9f4; --vrij-i:#2e6a9e;
+  --over:#f59b57; --over-t:#fde2cc; --over-i:#b4520f;
+  --talent:#a98bd6; --talent-t:#ebe2f7; --talent-i:#6b3fa8;
+  --f:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f)}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.brand{background:#fff;border-bottom:4px solid var(--sky);padding-top:env(safe-area-inset-top,0px)}
+.brand .in{max-width:1320px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.brand .logo{height:44px;width:auto}
+.brand h1{font-size:1.3rem;margin:0;color:var(--slate);border-left:2px solid var(--line);padding-left:18px}
+.brand .koers{height:38px;width:auto;margin-left:auto}
+@media (max-width:640px){.brand .koers{display:none}.brand .logo{height:34px}.brand h1{font-size:1.1rem;padding-left:12px}}
+
+.app{max-width:1320px;margin:0 auto;padding:18px 16px 60px;display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.app{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+
+/* pupil list */
+.rail{padding:14px;display:grid;gap:10px;position:sticky;top:12px}
+@media (max-width:900px){.rail{position:static}}
+.rail h2{font-size:1rem;margin:0;display:flex;justify-content:space-between;align-items:center}
+.rail .tools{display:flex;gap:6px}
+.inp{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:6px;padding:7px 14px;font-weight:700;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:4px 10px;font-size:.88rem}
+.btn.danger{border-color:var(--danger);color:var(--danger);background:transparent}
+.btn:disabled{opacity:.45;cursor:default}
+.bulk{display:grid;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+.bulk .row{display:flex;gap:6px}
+.listhead{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:var(--muted)}
+.listhead label{display:flex;gap:6px;align-items:center}
+.list{display:grid;gap:2px;max-height:52vh;overflow:auto;margin:0 -6px;padding:0 6px}
+.pupil{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-radius:6px;cursor:pointer}
+.pupil:hover{background:var(--bg)}
+.pupil.sel{background:color-mix(in srgb,var(--sky) 28%,#fff)}
+.pupil .nm{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pupil .kl{font-size:.8rem;color:var(--muted)}
+.pupil .ct{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-size:.92rem;padding:8px 2px}
+.rail .foot{border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px}
+.rail .foot .row{display:flex;gap:6px;flex-wrap:wrap}
+.hint{font-size:.85rem;color:var(--muted);margin:0}
+
+/* editor */
+.editor{padding:18px;display:grid;gap:16px;min-width:0}
+.fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
+@media (max-width:560px){.fields{grid-template-columns:1fr}}
+label.l{display:block;font-weight:700;margin-bottom:4px}
+.big{font-size:1.15rem;font-weight:700}
+.goalrow{display:flex;gap:8px;flex-wrap:wrap}
+.goalrow .inp{flex:1 1 220px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--c);background:var(--t);border-radius:999px;padding:2px 4px 2px 10px;font-size:.88rem;max-width:100%}
+.chip b{color:var(--i);font-variant-numeric:tabular-nums}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:26ch}
+.chip button{border:none;background:transparent;width:24px;height:24px;border-radius:50%;line-height:1}
+.chip button:hover{background:rgba(0,0,0,.08)}
+.warn{color:var(--danger);font-size:.88rem;margin:6px 0 0}
+.talentbox{border:2px dashed var(--talent);background:color-mix(in srgb,var(--talent-t) 55%,#fff);border-radius:10px;padding:12px}
+.talentbox label.l{color:var(--talent-i)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:14px}
+.actions .sp{flex:1}
+.actions select{padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.saved{font-size:.85rem;color:var(--muted)}
+.preview h3{font-size:1rem;margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.cards canvas{width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.12);background:#fff}
+.welcome{padding:30px 18px;text-align:center;color:var(--muted)}
+.welcome b{color:var(--ink);display:block;font-size:1.15rem;margin-bottom:6px}
+
+/* goal picker */
+.modal{position:fixed;inset:0;z-index:20;background:rgba(20,26,32,.5);display:grid;place-items:center;padding:16px}
+.sheet{background:#fff;border-radius:12px;width:min(920px,100%);max-height:calc(100vh - 32px);display:grid;grid-template-rows:auto 1fr auto;overflow:hidden}
+.sheet header{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.sheet header .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sheet header h3{margin:0;flex:1}
+.sheet header .inp{flex:1 1 200px;width:auto;min-width:0}
+.sheet header select{padding:7px 10px;border:1px solid var(--line);border-radius:6px}
+.glist{overflow:auto;padding:8px 16px}
+.gsub{font-size:.8rem;letter-spacing:.06em;font-weight:700;color:var(--i);margin:14px 0 6px;text-transform:uppercase}
+.gitem{display:grid;grid-template-columns:auto 110px 1fr;gap:12px;align-items:center;padding:6px;border-radius:8px;cursor:pointer}
+.gitem:hover{background:var(--bg)}
+.gitem img{width:110px;aspect-ratio:16/9;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px}
+.gitem .t{min-width:0}
+.gitem .t b{color:var(--i);margin-right:6px;font-variant-numeric:tabular-nums}
+.sheet footer{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.sheet footer .sp{flex:1;color:var(--muted);font-size:.9rem}
+.cycbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;background:color-mix(in srgb,var(--sky) 18%,#fff);border:1px solid color-mix(in srgb,var(--sky) 60%,#fff);border-radius:8px;padding:10px 12px;margin-bottom:16px}
+.cycbar .cyc-l{font-weight:700;color:var(--slate)}
+.cycbar select{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-weight:700}
+.cycbar .hint{flex:1 1 260px}
+.notice{margin-top:14px;background:#fff8e1;border:1px solid #f0d78a;border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ac{position:relative;flex:1 1 260px;min-width:0}
+.ac .inp{width:100%}
+.aclist{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:15;list-style:none;margin:0;padding:4px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,30,40,.16);max-height:min(60vh,430px);overflow:auto}
+.aclist li{display:grid;grid-template-columns:72px auto 1fr auto;gap:10px;align-items:center;padding:6px 8px;border-radius:6px;cursor:pointer}
+.aclist li[aria-selected="true"]{background:color-mix(in srgb,var(--sky) 25%,#fff)}
+.aclist li.al{opacity:.5;cursor:default}
+.aclist img,.aclist .ph{width:72px;aspect-ratio:16/9;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px}
+.aclist b{color:var(--i);font-variant-numeric:tabular-nums}
+.aclist .t{min-width:0;font-size:.92rem}
+.aclist .t small{display:block;color:var(--muted);font-size:.75rem}
+.aclist .tag{font-size:.75rem;color:var(--muted)}
+.aclist .leeg{padding:10px;color:var(--muted);display:block}
+.hist h3{font-size:1rem;margin:0 0 8px}
+.hrow{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:6px;margin-bottom:8px}
+.hrow.nu{border-color:var(--sky);background:color-mix(in srgb,var(--sky) 10%,#fff)}
+.hrow .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hrow .top b{flex:1}
+.hrow .nrs{font-size:.88rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--slate);color:#fff;padding:9px 16px;border-radius:6px;z-index:40;font-size:.92rem}
+.busy{position:fixed;inset:0;z-index:30;background:rgba(255,255,255,.75);display:grid;place-items:center;font-weight:700;color:var(--slate)}
+</style>
+</head>
+<body>
+<div class="brand"><div class="in">
+  <img class="logo" src="../assets/logo-styrka.png" alt="Styrka Secundair Onderwijs @waterkant">
+  <h1>Doelkaartjes</h1>
+  <img class="koers" src="../assets/jouw-koers.png" alt="Jouw koers, onze stroom">
+</div></div>
+
+<div class="app">
+  <aside class="panel rail" aria-label="Leerlingen">
+    <h2>Leerlingen <span class="tools"><button class="btn ghost small" id="bulkBtn">+ Meerdere</button><button class="btn small" id="newBtn">+ Nieuw</button></span></h2>
+    <div class="bulk" id="bulk" hidden>
+      <label class="l" for="bulkNames">Meerdere leerlingen toevoegen</label>
+      <textarea class="inp" id="bulkNames" rows="3" placeholder="jan jansen, piet pieters, flip flipkens"></textarea>
+      <input class="inp" id="bulkKlas" placeholder="Klas of groep (mag leeg)" autocomplete="off">
+      <div class="row"><button class="btn small" id="bulkAdd">Toevoegen</button><button class="btn ghost small" id="bulkCancel">Annuleren</button></div>
+      <p class="hint">Scheid de namen met een komma of zet elke naam op een nieuwe regel.</p>
+    </div>
+    <input class="inp" id="search" type="search" placeholder="Zoek leerling of klas" aria-label="Zoek leerling">
+    <div class="listhead"><label><input type="checkbox" id="allBox"> alles aanvinken</label><span id="listCount"></span></div>
+    <div class="list" id="list"></div>
+    <div class="foot">
+      <button class="btn" id="multiBtn" disabled>PDF voor aangevinkte</button>
+      <button class="btn danger small" id="multiDel" hidden>Aangevinkte verwijderen</button>
+      <div class="row">
+        <button class="btn ghost small" id="exportBtn">Back-up bewaren</button>
+        <button class="btn ghost small" id="importBtn">Back-up laden</button>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </div>
+      <p class="hint">De leerlingen worden alleen in deze browser op deze computer bewaard. Maak af en toe een back-up, of gebruik die om de lijst naar een andere computer over te zetten.</p>
+    </div>
+  </aside>
+
+  <main class="panel editor" id="editor">
+    <div class="cycbar">
+      <span class="cyc-l">Huidige cyclus</span>
+      <select id="cycNr" aria-label="Cyclus"></select>
+      <select id="cycJaar" aria-label="Schooljaar"></select>
+      <span class="hint">Alles wat je nu invult, hoort bij deze cyclus. Een nieuwe cyclus? Kies hier het volgende nummer.</span>
+    </div>
+    <div class="welcome" id="welcome">
+      <b>Kies een leerling of maak een nieuwe aan</b>
+      Typ de naam, de nummers van de doelen en het talent. De tool onthoudt alles, en maakt er een PDF met doelkaartjes van.
+    </div>
+    <div id="form" hidden>
+      <div class="fields">
+        <div><label class="l" for="naam">Naam leerling</label><input class="inp big" id="naam" placeholder="bv. Pieter Jansens" autocomplete="off"></div>
+        <div><label class="l" for="klas">Klas of groep <span class="hint">(mag leeg)</span></label><input class="inp" id="klas" placeholder="bv. OV1-A" autocomplete="off"></div>
+      </div>
+      <div class="notice" id="vorige" hidden></div>
+      <div style="margin-top:16px">
+        <label class="l" for="doelIn">Werkt aan deze doelen <span class="hint" id="cycHint"></span></label>
+        <div class="goalrow">
+          <div class="ac"><input class="inp" id="doelIn" placeholder="Nummers (123, 4, 56 of 144-151) of een zoekwoord, bv. koken" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="doelAc" aria-autocomplete="list">
+            <ul class="aclist" id="doelAc" role="listbox" hidden></ul></div>
+          <button class="btn ghost" id="addBtn">Toevoegen</button>
+        </div>
+        <p class="warn" id="doelWarn" hidden></p>
+        <div class="chips" id="doelChips"></div>
+      </div>
+      <div class="talentbox" style="margin-top:16px">
+        <label class="l" for="talentIn">★ Dit is mijn talent <span class="hint">(één doel, wordt een paars kaartje)</span></label>
+        <div class="goalrow">
+          <div class="ac"><input class="inp" id="talentIn" placeholder="Nummer of zoekwoord, bv. 120 of muziek" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="talentAc" aria-autocomplete="list">
+            <ul class="aclist" id="talentAc" role="listbox" hidden></ul></div>
+        </div>
+        <p class="warn" id="talentWarn" hidden></p>
+        <div class="chips" id="talentChip"></div>
+      </div>
+      <div class="actions" style="margin-top:16px">
+        <button class="btn" id="pdfBtn">Maak PDF</button>
+        <select id="layout" aria-label="Opmaak">
+          <option value="6">6 kaartjes per A4 liggend (2 × 3)</option>
+          <option value="4">4 kaartjes per A4</option>
+          <option value="3">3 kaartjes per A4 (groter)</option>
+          <option value="1">1 groot kaartje per A4 (liggend)</option>
+        </select>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="sorted"> op nummer sorteren</label>
+        <span class="sp"></span>
+        <span class="saved" id="saved"></span>
+        <button class="btn danger small" id="delBtn">Leerling verwijderen</button>
+      </div>
+      <section class="preview" style="margin-top:18px">
+        <h3 id="prevTitle">Voorbeeld</h3>
+        <div class="cards" id="cards"></div>
+      </section>
+      <section class="hist" style="margin-top:22px">
+        <h3>Historiek van deze leerling</h3>
+        <div id="histList"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="busy" id="busy" hidden>PDF wordt gemaakt…</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const DOELEN = [{"nr": 1, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan aangeven wanneer ik honger of dorst heb.", "img": "../img/1.jpg?v=1791834500-wolk-6", "zoek": "geeft honger en dorst aan IK HEB HONGER IK HEB DORST IK ZEG HET"}, {"nr": 2, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan verschillende soorten voeding en drinken opeten en opdrinken.", "img": "../img/2.jpg?v=1791834519-wolk-6", "zoek": "neemt verschillende vormen van voeding op ETEN DRINKEN IETS NIEUWS PROEVEN"}, {"nr": 3, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wat gezond eten is en ik kan dit opeten.", "img": "../img/3.jpg?v=1791834539-wolk-6", "zoek": "neemt gezonde en evenwichtige voeding op GROENTEN EN FRUIT WATER DRINKEN SNOEP: SOMS"}, {"nr": 4, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan aangeven wanneer ik verzorging nodig heb.", "img": "../img/4.jpg?v=1791834559-wolk-6", "zoek": "geeft nood aan verzorging aan AU! IK ZEG HET HULP"}, {"nr": 5, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan mezelf goed wassen en hygiënisch verzorgen.", "img": "../img/5.jpg?v=1791834581-wolk-6", "zoek": "verzorgt zich hygiënisch DOUCHEN TANDEN POETSEN HANDEN WASSEN"}, {"nr": 6, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan aangeven wanneer ik rust nodig heb.", "img": "../img/6.jpg?v=1791834600-wolk-6", "zoek": "geeft behoefte aan rust aan"}, {"nr": 7, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik ken het verschil tussen dag en nacht en ik kan mij aan dit ritme houden.", "img": "../img/7.jpg?v=1791834623-wolk-6", "zoek": "houdt zich aan het dag-nachtritme"}, {"nr": 8, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan gezond en voldoende bewegen.", "img": "../img/8.jpg?v=1791834643-wolk-6", "zoek": "beweegt gezond en evenwichtig"}, {"nr": 9, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan op een rustige en gepaste manier uitrusten zonder anderen te storen.", "img": "../img/9.jpg?v=1791834664-wolk-6", "zoek": "vult rustmomenten op een sociaal aanvaardbare manier in"}, {"nr": 10, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet hoe ik veilig met medicijnen moet omgaan.", "img": "../img/10.jpg?v=1791834689-wolk-6", "zoek": "gaat op een gepaste wijze om met genots- en geneesmiddelen ALLEEN MET HULP JUISTE HOEVEELHEID NIET ZOMAAR NEMEN"}, {"nr": 11, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wat ik goed deed en wat ik beter kan doen als iets lukt of mislukt.", "img": "../img/11.jpg?v=1791834710-wolk-6", "zoek": "beoordeelt wat zijn aandeel is in successen en mislukkingen GELUKT! MISLUKT WAT KAN BETER?"}, {"nr": 12, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan rekening houden met wat anderen denken, voelen en willen.", "img": "../img/12.jpg?v=1791834732-wolk-6", "zoek": "houdt rekening met gedachten, gevoelens en wensen van anderen IK KIJK IK LUISTER IK HELP"}, {"nr": 13, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik ken mijn eigen lichaam (lichaamsbesef).", "img": "../img/13.jpg?v=1791834752-wolk-6", "zoek": "ontwikkelt lichaamsbesef MIJN LICHAAM WAT VOEL IK? IK ZORG ERVOOR"}, {"nr": 14, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wie ik ben en wie ik graag zie (seksuele identiteit).", "img": "../img/14.jpg?v=1791834776-wolk-6", "zoek": "ontwikkelt een seksuele identiteit DIT BEN IK IK VIND IEMAND LIEF DAT IS OKÉ"}, {"nr": 15, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wat ik goed kan en ik ben trots op mezelf.", "img": "../img/15.jpg?v=1791834795-wolk-6", "zoek": "ontwikkelt een positief realistisch zelfbeeld DIT KAN IK GOED GOED GEDAAN! IK BEN TROTS"}, {"nr": 16, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan haalbare doelen voor mezelf kiezen en aanpassen als het niet lukt.", "img": "../img/16.jpg?v=1791837779-wolk-6", "zoek": "stelt zichzelf realistische doelen en stuurt ze indien nodig bij HAALBAAR DOEL LUKT HET NIET? NIEUW DOEL"}, {"nr": 17, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik durf nieuwe dingen te proberen en er zelf aan te beginnen.", "img": "../img/17.jpg?v=1791839509-wolk-6", "zoek": "staat open voor uitdagingen en heeft zin in initiatief IETS NIEUWS IK DURF ZELF BEGINNEN"}, {"nr": 18, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan omgaan met mijn emoties (blij, boos, bang, verdrietig).", "img": "../img/18.jpg?v=1791837806-wolk-6", "zoek": "gaat om met emoties"}, {"nr": 19, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wie ik een knuffel of een hand mag geven.", "img": "../img/19.jpg?v=1791834835-wolk-6", "zoek": "gaat om met intimiteitsniveaus FAMILIE VRIEND ONBEKENDE"}, {"nr": 20, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wat ik kan doen om rustig te worden als ik stress heb.", "img": "../img/20.jpg?v=1791834855-wolk-6", "zoek": "gaat om met stress STRESS RUSTIG ADEMEN RUSTIG PLEKJE"}, {"nr": 21, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet hoe ik mezelf blij kan maken en een goed gevoel kan bezorgen.", "img": "../img/21.jpg?v=1791834877-wolk-6", "zoek": "bezorgt zichzelf een goed gevoel MUZIEK WANDELEN IETS LEUKS DOEN"}, {"nr": 22, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan proberen om na iets moeilijks of een tegenslag weer verder te gaan (veerkracht).", "img": "../img/22.jpg?v=1791837840-wolk-6", "zoek": "bouwt veerkracht op TEGENSLAG WEER OPSTAAN VERDER GAAN"}, {"nr": 23, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan de wereld ontdekken door te knutselen, zingen of toneel te spelen.", "img": "../img/23.jpg?v=1791837862-wolk-6", "zoek": "ervaart zichzelf en de wereld door middel van muzisch creatieve ervaringen KNUTSELEN ZINGEN TONEELSPELEN"}, {"nr": 24, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wat ik al kan en waar ik hulp bij nodig heb.", "img": "../img/24.jpg?v=1791837898-wolk-6", "zoek": "schat zijn mogelijkheden en zijn beperkingen in WAT IK AL KAN HULP BIJ NODIG HULP VRAGEN"}, {"nr": 25, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan genieten van een leuke activiteit of situatie.", "img": "../img/25.jpg?v=1791834898-wolk-6", "zoek": "geniet van een activiteit of situatie"}, {"nr": 26, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan ermee omgaan als er iets gebeurt wat ik niet had verwacht.", "img": "../img/26.jpg?v=1791834922-wolk-6", "zoek": "gaat om met onvoorspelbaarheid PLOTS ANDERS! RUSTIG BLIJVEN NIEUW PLAN"}, {"nr": 27, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan voor mezelf opkomen en 'nee' zeggen als ik iets niet wil.", "img": "../img/27.jpg?v=1791834945-wolk-6", "zoek": "stelt zich weerbaar op"}, {"nr": 28, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet wie ik ben en ik bouw mijn eigen identiteit uit.", "img": "../img/28.jpg?v=1791834967-wolk-6", "zoek": "bouwt zijn eigen identiteit uit"}, {"nr": 29, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan nieuwe vrienden maken (relaties opbouwen).", "img": "../img/29.jpg?v=1791834990-wolk-6", "zoek": "bouwt persoonlijke relaties op"}, {"nr": 30, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan een vriendschap onderhouden.", "img": "../img/30.jpg?v=1791835014-wolk-6", "zoek": "onderhoudt persoonlijke relaties"}, {"nr": 31, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan 'nee' zeggen en opkomen voor mezelf bij vrienden of klasgenoten.", "img": "../img/31.jpg?v=1791835035-wolk-6", "zoek": "stelt zich weerbaar op in persoonlijke relaties"}, {"nr": 32, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan luisteren naar tips of opmerkingen van anderen (kritiek).", "img": "../img/32.jpg?v=1791835057-wolk-6", "zoek": "gaat om met kritiek"}, {"nr": 33, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan netjes en beleefd eten en drinken met anderen.", "img": "../img/33.jpg?v=1791837933-wolk-6", "zoek": "stelt bij eten of drinken sociaal aanvaardbaar gedrag NETJES ETEN ALSTUBLIEFT EN DANK U MOND AFVEGEN"}, {"nr": 34, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan me op een gepaste manier wassen en verzorgen zonder iemand te storen.", "img": "../img/34.jpg?v=1791835078-wolk-6", "zoek": "stelt bij verzorging sociaal aanvaardbaar gedrag"}, {"nr": 35, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan op een beleefde manier zeggen of tonen wat ik denk, voel of wens.", "img": "../img/35.jpg?v=1791835099-wolk-6", "zoek": "uit gedachten, gevoelens en wensen op een sociaal aanvaardbare manier"}, {"nr": 36, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet hoe ik ruzies of conflicten kan oplossen.", "img": "../img/36.jpg?v=1791835120-wolk-6", "zoek": "gaat om met conflicten"}, {"nr": 37, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan afscheid nemen of loskomen van iemand (relaties).", "img": "../img/37.jpg?v=1791835144-wolk-6", "zoek": "komt los van persoonlijke relaties"}, {"nr": 38, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik ken en gebruik beleefde taal als het over seksualiteit of mijn lichaam gaat.", "img": "../img/38.jpg?v=1791835167-wolk-6", "zoek": "gebruikt sociaal aanvaardbare taal m.b.t. seksualiteit"}, {"nr": 39, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan veilig en gepast met seksualiteit omgaan.", "img": "../img/39.jpg?v=1791835194-wolk-6", "zoek": "beleeft zijn seksualiteit op een aangepaste en veilige wijze"}, {"nr": 40, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik ken de regels en grenzen in een vriendschap of relatie en houd me eraan.", "img": "../img/40.jpg?v=1791835214-wolk-6", "zoek": "stelt en aanvaardt regels en grenzen in relaties"}, {"nr": 41, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik weet welke kleren ik moet dragen voor een activiteit of gelegenheid.", "img": "../img/41.jpg?v=1791835236-wolk-6", "zoek": "stemt zijn voorkomen af op de situatie"}, {"nr": 42, "domein": "WONEN", "subdomein": "Persoonlijk dagelijks leven", "ik_doel": "Ik kan luisteren naar verschillende leerkrachten of begeleiders, ook als ze elk hun eigen stijl hebben.", "img": "../img/42.jpg?v=1791837962-wolk-6", "zoek": "aanvaardt verschillende stijlen van leiding geven VERSCHILLENDE BEGELEIDERS ELK EEN EIGEN STIJL GOED LUISTEREN"}, {"nr": 43, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan (helpen met) een maaltijd klaarmaken.", "img": "../img/43.jpg?v=1791838002-wolk-6", "zoek": "bereidt een maaltijd VOORBEREIDEN SAMEN KOKEN MAALTIJD KLAAR!"}, {"nr": 44, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan mijn kamer, bank en omgeving netjes opruimen.", "img": "../img/44.jpg?v=1791835259-wolk-6", "zoek": "onderhoudt zijn omgeving"}, {"nr": 45, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan mijn kleren netjes onderhouden en opbergen.", "img": "../img/45.jpg?v=1791838027-wolk-6", "zoek": "onderhoudt zijn kleding OPVOUWEN IN DE KAST ALLES NETJES!"}, {"nr": 46, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan boodschappen doen (in de winkel).", "img": "../img/46.jpg?v=1791834247-wolk-6", "zoek": "doet boodschappen"}, {"nr": 47, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik weet hoe ik met mijn budget en geld moet omgaan.", "img": "../img/47.jpg?v=1791835284-wolk-6", "zoek": "beheert zijn budget"}, {"nr": 48, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan (helpen met) post openen of belangrijke papieren bijhouden.", "img": "../img/48.jpg?v=1791835310-wolk-6", "zoek": "beheert zijn administratie en zijn correspondentie"}, {"nr": 49, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan veilig en proper schoonmaken, sorteren en aan het milieu denken.", "img": "../img/49.jpg?v=1791835331-wolk-6", "zoek": "voert huishoudelijke activiteiten uit rekening houdend met veiligheid, hygiëne en milieu"}, {"nr": 50, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan zorgen voor de mensen waarmee ik samenleef (huisgenoten).", "img": "../img/50.jpg?v=1792234813-wolk-6", "zoek": "zorgt voor huisgenoten"}, {"nr": 51, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan mijn eigen plekje of kamer gezellig inrichten.", "img": "../img/51.jpg?v=1791835380-wolk-6", "zoek": "richt zijn omgeving in"}, {"nr": 52, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik weet waar ik graag wil wonen en in welke woonvorm.", "img": "../img/52.jpg?v=1791838077-wolk-6", "zoek": "vindt een gepaste woonvorm WAAR WONEN? WELKE WOONVORM? MIJN WOONPLEK"}, {"nr": 53, "domein": "WONEN", "subdomein": "Huishoudelijk dagelijks leven", "ik_doel": "Ik kan de computer, tablet of gsm gebruiken om huishoudelijke taken makkelijker te maken (vb. rekenmachine of boodschappenlijst).", "img": "../img/53.jpg?v=1791838118-wolk-6", "zoek": "gebruikt ICT in functie van huishoudelijke activiteiten BOODSCHAPPENLIJST REKENMACHINE MAKKELIJK GEDAAN!"}, {"nr": 54, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik weet hoe ik naar de bank, de post of het gemeentehuis moet gaan (diensten).", "img": "../img/54.jpg?v=1791834267-wolk-6", "zoek": "maakt gebruik van dienstverlenende instanties BANK POST GEMEENTEHUIS"}, {"nr": 55, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik weet wie mij kan helpen als ik in de problemen zit (dokter, politie, hulpverlening).", "img": "../img/55.jpg?v=1791835400-wolk-6", "zoek": "maakt gebruik van hulpverlenende voorzieningen IK HEB EEN PROBLEEM WIE HELPT MIJ? IK KRIJG HULP"}, {"nr": 56, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik weet hoe ik iets kan kopen in een winkel.", "img": "../img/56.jpg?v=1791835423-wolk-6", "zoek": "maakt gebruik van commerciële instanties VRAGEN BETALEN BEDANKT!"}, {"nr": 57, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik kan meedoen met activiteiten in een groep.", "img": "../img/57.jpg?v=1791835444-wolk-6", "zoek": "participeert aan groepsactiviteiten. IN DE GROEP SAMEN SPELEN SAMEN LACHEN"}, {"nr": 58, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik kan een leuke of belangrijke taak opnemen in de groep (engageren).", "img": "../img/58.jpg?v=1791835464-wolk-6", "zoek": "engageert zich in groepsactiviteiten WIE DOET WAT? IK HELP MEE GOED GEDAAN!"}, {"nr": 59, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik kan mijn mening geven over een onderwerp en ik respecteer de ideeën en waarden van anderen.", "img": "../img/59.jpg?v=1791835489-wolk-6", "zoek": "formuleert een mening over maatschappelijke vraagstukken met respect voor waarden en normen IK DENK… JIJ DENKT… RESPECT"}, {"nr": 60, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik ken mijn rechten en plichten en ik pas ze toe.", "img": "../img/60.jpg?v=1791835508-wolk-6", "zoek": "past geldende rechten en plichten toe MIJN RECHTEN MIJN PLICHTEN IK DOE MEE ✓"}, {"nr": 61, "domein": "WONEN", "subdomein": "Maatschappelijk dagelijks leven", "ik_doel": "Ik kan afspraken maken en ik houd me aan de afspraken.", "img": "../img/61.jpg?v=1791835529-wolk-6", "zoek": "maakt afspraken en houdt zich aan afspraken AFSPRAAK MAKEN ONTHOUDEN OP TIJD!"}, {"nr": 62, "domein": "WERKEN", "subdomein": "Oriëntatie naar de job", "ik_doel": "Ik kan kennismaken met verschillende soorten werk en taken.", "img": "../img/62.jpg?v=1791835552-wolk-6", "zoek": "verkent de verschillende mogelijkheden van arbeidsgerichte activiteiten KIJKEN PROBEREN WAT VIND IK LEUK?"}, {"nr": 63, "domein": "WERKEN", "subdomein": "Oriëntatie naar de job", "ik_doel": "Ik kan een werk of taak kiezen die haalbaar is voor mij.", "img": "../img/63.jpg?v=1791835575-wolk-6", "zoek": "kiest een haalbare arbeidsgerichte activiteit WAT KAN IK? KIEZEN DIT PAST BIJ MIJ ✓"}, {"nr": 64, "domein": "WERKEN", "subdomein": "Oriëntatie naar de job", "ik_doel": "Ik weet wat ik goed kan en waarbij ik hulp nodig heb op het werk.", "img": "../img/64.jpg?v=1792234833-wolk-6", "zoek": "schat mogelijkheden en beperkingen i.v.m. arbeidsgerichte activiteiten in DIT KAN IK KAN JE ME HELPEN AUB? SAMEN LUKT HET"}, {"nr": 65, "domein": "WERKEN", "subdomein": "Oriëntatie naar de job", "ik_doel": "Ik ben klaar om te leren en te veranderen als dat nodig is.", "img": "../img/65.jpg?v=1791835619-wolk-6", "zoek": "toont in een arbeidssituatie leer- en veranderingsbereidheid IETS NIEUWS LEREN IK KAN HET!"}, {"nr": 66, "domein": "WERKEN", "subdomein": "Oriëntatie naar de job", "ik_doel": "Ik kan vertellen welk werk ik graag doe en wat ik verwacht.", "img": "../img/66.jpg?v=1791835641-wolk-6", "zoek": "maakt eigen wensen en verwachtingen in verband met werk kenbaar MIJN WENSEN VERTELLEN GEHOORD ✓"}, {"nr": 67, "domein": "WERKEN", "subdomein": "Oriëntatie naar de job", "ik_doel": "Ik weet waarom mijn werk nuttig en belangrijk is in de wereld.", "img": "../img/67.jpg?v=1791835661-wolk-6", "zoek": "plaatst de eigen arbeid in een zinvol maatschappelijk geheel MIJN WERK VOOR ANDEREN NUTTIG!"}, {"nr": 68, "domein": "WERKEN", "subdomein": "Oriëntatie naar de job", "ik_doel": "Ik weet welke werkkleding en schoenen ik moet dragen voor mijn job.", "img": "../img/68.jpg?v=1791835681-wolk-6", "zoek": "stemt zijn voorkomen af op de aard van de opdracht en op de werkomgeving WELKE JOB? WERKKLEDING KLAAR!"}, {"nr": 69, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan de grote bewegingen uitvoeren die nodig zijn voor mijn werk (grove motoriek).", "img": "../img/69.jpg?v=1791835703-wolk-6", "zoek": "beheerst en coördineert de nodige grove motoriek bij het uitvoeren van een opdracht TILLEN DRAGEN DUWEN"}, {"nr": 70, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan de kleine en precieze bewegingen uitvoeren (fijne motoriek).", "img": "../img/70.jpg?v=1791838154-wolk-6", "zoek": "beheerst en coördineert de nodige fijne motoriek bij het uitvoeren van een opdracht VASTPAKKEN SORTEREN PRECIES"}, {"nr": 71, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan mijn bewegingen goed op elkaar afstemmen als ik werk.", "img": "../img/71.jpg?v=1791838190-wolk-6", "zoek": "coördineert zijn bewegingen bij het uitvoeren van een opdracht KIJKEN OOG, HAND EN VOET GELUKT!"}, {"nr": 72, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan mijn kracht gebruiken als dat nodig is.", "img": "../img/72.jpg?v=1791835724-wolk-6", "zoek": "beheerst de nodige kracht voor het uitvoeren van een opdracht ZWAAR KRACHT GEBRUIKEN GELUKT ✓"}, {"nr": 73, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan mijn kracht doseren (harder of zachter werken) afhankelijk van de taak.", "img": "../img/73.jpg?v=1791835747-wolk-6", "zoek": "doseert de nodige kracht voor het uitvoeren van een opdracht ZACHT HARD JUIST GENOEG"}, {"nr": 74, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik ken de werkvolgorde en kan de stappen na elkaar uitvoeren.", "img": "../img/74.jpg?v=1791835767-wolk-6", "zoek": "voert volgens de opgelegde werkvolgorde de opeenvolgende handelingen uit STAP 1 STAP 2 STAP 3"}, {"nr": 75, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan een afgesproken tijd flink doorwerken aan mijn taak.", "img": "../img/75.jpg?v=1791835789-wolk-6", "zoek": "werkt gedurende een opgelegde tijd aan een opgelegde taak START DOORWERKEN KLAAR!"}, {"nr": 76, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan mijn tempo aanpassen aan het werkritme dat gevraagd wordt.", "img": "../img/76.jpg?v=1791835811-wolk-6", "zoek": "past het eigen werkritme aan het opgelegd ritme aan TE TRAAG TE SNEL JUIST TEMPO"}, {"nr": 77, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan mijn werk mooi, goed en afgewerkt afleveren (kwaliteit).", "img": "../img/77.jpg?v=1791835831-wolk-6", "zoek": "behaalt vooropgestelde kwaliteitseisen WERKEN CONTROLEREN MOOI AFGEWERKT"}, {"nr": 78, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan werken tot mijn taak of het eindresultaat bereikt is.", "img": "../img/78.jpg?v=1791835851-wolk-6", "zoek": "werkt resultaatgericht BEGINNEN VERDER WERKEN RESULTAAT! ✓"}, {"nr": 79, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan goed en met al mijn aandacht bij mijn werk blijven.", "img": "../img/79.jpg?v=1791835870-wolk-6", "zoek": "voert het werk met volle en volgehouden aandacht uit OGEN OP MIJN WERK NIET AFGELEID GOED BEZIG"}, {"nr": 80, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan werken op mijn eigen tempo en pauzeren als het nodig is (mogelijkheden en beperkingen).", "img": "../img/80.jpg?v=1791838234-wolk-6", "zoek": "handelt in een arbeidssituatie naar eigen mogelijkheden en beperkingen WERKEN MOE? PAUZE WEER VERDER"}, {"nr": 81, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik houd me aan de regels, afspraken en procedures tijdens het werken.", "img": "../img/81.jpg?v=1791835895-wolk-6", "zoek": "houdt zich aan regels, afspraken en procedures van de arbeidssituatie REGELS IK VOLG ZE OK!"}, {"nr": 82, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik blijf proberen, ook als het werk even heel moeilijk is.", "img": "../img/82.jpg?v=1791835915-wolk-6", "zoek": "zet door bij moeilijkheden in de arbeidssituatie MOEILIJK OPNIEUW PROBEREN GELUKT!"}, {"nr": 83, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan me aanpassen als er plotseling iets verandert op de werkplek.", "img": "../img/83.jpg?v=1791835934-wolk-6", "zoek": "past zich aan wijzigende omstandigheden in een arbeidssituatie aan PLAN A PLOTS ANDERS! IK PAS ME AAN ✓"}, {"nr": 84, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan zelf mijn materiaal klaarzetten en mijn taken organiseren.", "img": "../img/84.jpg?v=1791835955-wolk-6", "zoek": "organiseert zijn eigen werkzaamheden in functie van de werkopdracht MATERIAAL KLAARZETTEN TAKEN OP EEN RIJ AAN DE SLAG"}, {"nr": 85, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan hulp vragen of iets oplossen als er een probleem is met mijn werk.", "img": "../img/85.jpg?v=1791835977-wolk-6", "zoek": "reageert adequaat op problemen bij het productieproces of bij de dienstverlening PROBLEEM! HULP VRAGEN OPGELOST ✓"}, {"nr": 86, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan goed samenwerken met anderen in een werkketen of groep.", "img": "../img/86.jpg?v=1791836003-wolk-6", "zoek": "werkt samen als een schakel in een werkketen IK JIJ SAMEN KLAAR"}, {"nr": 87, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan zelf initiatief nemen (vb. opruimen als ik moet wachten).", "img": "../img/87.jpg?v=1791836024-wolk-6", "zoek": "toont initiatief passend bij de arbeidswerksituatie IK MOET WACHTEN IK RUIM OP GOED IDEE!"}, {"nr": 88, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik kan werkformulieren lezen, invullen of afgeven.", "img": "../img/88.jpg?v=1791836045-wolk-6", "zoek": "verwerkt arbeidsgerelateerde formulieren LEZEN INVULLEN AFGEVEN"}, {"nr": 89, "domein": "WERKEN", "subdomein": "Proces en uitvoering", "ik_doel": "Ik ken en gebruik de vaktaal (woorden) die bij mijn job hoort.", "img": "../img/89.jpg?v=1791836066-wolk-6", "zoek": "gebruikt arbeidsgerelateerde taal WOORDEN VAN MIJN JOB IK GEBRUIK ZE BEGREPEN ✓"}, {"nr": 90, "domein": "WERKEN", "subdomein": "Relaties op de werkvloer", "ik_doel": "Ik ben vriendelijk en ik zorg voor een goede sfeer op het werk.", "img": "../img/90.jpg?v=1791836094-wolk-6", "zoek": "draagt bij tot het algemeen welzijn en een goede werksfeer GOEDEMORGEN! HELPEN GOEDE SFEER"}, {"nr": 91, "domein": "WERKEN", "subdomein": "Relaties op de werkvloer", "ik_doel": "Ik ken mijn rechten en plichten als werknemer en houd me daaraan.", "img": "../img/91.jpg?v=1791836118-wolk-6", "zoek": "gebruikt zijn rechten en leeft plichten in een arbeidsengagement na MIJN PLICHTEN MIJN RECHTEN EERLIJK ✓"}, {"nr": 92, "domein": "WERKEN", "subdomein": "Relaties op de werkvloer", "ik_doel": "Ik kan luisteren naar wat de leidinggevende (baas) vraagt en dit aanvaarden.", "img": "../img/92.jpg?v=1791836141-wolk-6", "zoek": "aanvaardt gezag van leidinggevenden DE BAAS VRAAGT IK LUISTER IK DOE HET ✓"}, {"nr": 93, "domein": "WERKEN", "subdomein": "Relaties op de werkvloer", "ik_doel": "Ik kan op een goede manier praten met mijn collega's en mijn baas.", "img": "../img/93.jpg?v=1791836165-wolk-6", "zoek": "communiceert met collega’s en leidinggevenden in functie van de werksituatie MET COLLEGA'S MET DE BAAS VRIENDELIJK"}, {"nr": 94, "domein": "WERKEN", "subdomein": "Relaties op de werkvloer", "ik_doel": "Ik weet welke dingen ik wel op het werk vertel, en welke privé zijn.", "img": "../img/94.jpg?v=1791836191-wolk-6", "zoek": "maakt een onderscheid tussen privé en werk OP HET WERK PRIVÉ WAT VERTEL IK WAAR?"}, {"nr": 95, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een assemblagewerkplaats (dingen in elkaar zetten).", "img": "../img/95.jpg?v=1791836210-wolk-6", "zoek": "past technieken toe die gebruikt worden in een assemblagewerkplaats ONDERDELEN IN ELKAAR ZETTEN KLAAR PRODUCT"}, {"nr": 96, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een verpakkingswerkplaats (dingen inpakken).", "img": "../img/96.jpg?v=1791836233-wolk-6", "zoek": "past technieken toe die gebruikt worden in een verpakkingswerkplaats DOOS VOUWEN INPAKKEN DICHTPLAKKEN"}, {"nr": 97, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een onderhoudsdienst (poetsen en kleine herstellingen).", "img": "../img/97.jpg?v=1791838264-wolk-6", "zoek": "past technieken toe die gebruikt worden in een onderhoudsdienst POETSEN HERSTELLEN PROPER"}, {"nr": 98, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een metaalwerkplaats (werken met metaal).", "img": "../img/98.jpg?v=1791836253-wolk-6", "zoek": "past technieken toe die gebruikt worden in een metaalwerkplaats METEN ZAGEN EN VIJLEN BOREN"}, {"nr": 99, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een houtwerkplaats (werken met hout).", "img": "../img/99.jpg?v=1791836273-wolk-6", "zoek": "past technieken toe die gebruikt worden in een houtwerkplaats METEN EN TEKENEN ZAGEN SCHUREN"}, {"nr": 100, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een verzendingsdienst (pakjes klaarmaken en versturen).", "img": "../img/100.jpg?v=1791836296-wolk-6", "zoek": "past technieken toe die gebruikt worden een verzendingsdienst PAKJE KLAARMAKEN ADRESLABEL VERSTUREN"}, {"nr": 101, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een groendienst (werken in de tuin en met planten).", "img": "../img/101.jpg?v=1791836318-wolk-6", "zoek": "past technieken toe die gebruikt worden in een groendienst PLANTEN WATER GEVEN GRAS MAAIEN"}, {"nr": 102, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een textielwerkplaats (werken met stof, naaien).", "img": "../img/102.jpg?v=1791836343-wolk-6", "zoek": "past technieken toe die gebruikt worden in een textielwerkplaats METEN EN KNIPPEN NAAIEN KLAAR"}, {"nr": 103, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in de keuken (eten klaarmaken).", "img": "../img/103.jpg?v=1791836368-wolk-6", "zoek": "past technieken toe die gebruikt worden in een keukenwerkplaats SNIJDEN KOKEN AFWASSEN"}, {"nr": 104, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een cateringdienst (eten en drinken opdienen).", "img": "../img/104.jpg?v=1791836393-wolk-6", "zoek": "past technieken toe die gebruikt worden in een cateringsdienst TAFEL DEKKEN OPDIENEN AFRUIMEN"}, {"nr": 105, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een drukkerij (printen, drukken en papier snijden).", "img": "../img/105.jpg?v=1791836416-wolk-6", "zoek": "past technieken toe die gebruikt worden in een drukkerij PRINTEN SNIJDEN BUNDELEN"}, {"nr": 106, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een logistieke dienst (spullen sorteren, opslaan en verplaatsen).", "img": "../img/106.jpg?v=1791836440-wolk-6", "zoek": "past technieken toe die gebruikt worden in een logistieke dienst SORTEREN OPSLAAN VERPLAATSEN"}, {"nr": 107, "domein": "WERKEN", "subdomein": "Technische competenties", "ik_doel": "Ik kan de technieken gebruiken die nodig zijn in een ambachtelijke werkplaats (iets met de hand maken).", "img": "../img/107.jpg?v=1791836458-wolk-6", "zoek": "past technieken toe die gebruikt worden in een ambachtelijke werkplaats ONTWERPEN MET DE HAND MAKEN UNIEK STUK"}, {"nr": 108, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik was mijn handen en pas de regels van de hygiëne toe.", "img": "../img/108.jpg?v=1791836480-wolk-6", "zoek": "houdt zich aan de geldende voorschriften inzake hygiëne HANDEN WASSEN PROPERE KLEDIJ PROPER WERKEN ✓"}, {"nr": 109, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik werk altijd veilig (met de juiste kleding, veiligheidsbril...).", "img": "../img/109.jpg?v=1791836503-wolk-6", "zoek": "past veiligheidsvoorschriften toe VEILIGHEIDSBRIL HANDSCHOENEN EN SCHOENEN VEILIG ✓"}, {"nr": 110, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik weet hoe ik met machines, gereedschap en producten moet werken, op een veilige en ergonomische manier.", "img": "../img/110.jpg?v=1791838293-wolk-6", "zoek": "hanteert machines, gereedschappen, producten en grondstoffen op een correcte manier: veilig, ergonomische en efficiënt UITLEG JUIST GEBRUIKEN TERUG OPBERGEN"}, {"nr": 111, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik herken risico's of gevaar op mijn werk en let goed op.", "img": "../img/111.jpg?v=1791836526-wolk-6", "zoek": "gaat adequaat om met risico’s OPGELET! IK ZIE HET IK MELD HET"}, {"nr": 112, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik ruim op en houd mijn werkplek op orde.", "img": "../img/112.jpg?v=1791836544-wolk-6", "zoek": "houdt de werkplek op orde ROMMEL OPRUIMEN NETJES ✓"}, {"nr": 113, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik verspil geen materialen en sorteer goed (duurzaamheid).", "img": "../img/113.jpg?v=1791838330-wolk-6", "zoek": "past duurzaamheidsprincipes toe NIET VERSPILLEN SORTEREN HERGEBRUIKEN"}, {"nr": 114, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik blijf rustig, ook als we snel of veel moeten werken (werkdruk).", "img": "../img/114.jpg?v=1791836564-wolk-6", "zoek": "gaat om met werkdruk VEEL WERK! RUSTIG ADEMEN STAP VOOR STAP"}, {"nr": 115, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik kan omgaan met de omgevingsfactoren (geluid, stof of temperatuur op het werk).", "img": "../img/115.jpg?v=1791836586-wolk-6", "zoek": "reageert adequaat op omgevingsfactoren van de arbeidsplaats LAWAAI? OORKAP STOF? MONDMASKER WARM? WATER DRINKEN"}, {"nr": 116, "domein": "WERKEN", "subdomein": "Veiligheid, hygiëne en welzijn op het werk", "ik_doel": "Ik kan meedoen of flink luisteren tijdens een werkvergadering.", "img": "../img/116.jpg?v=1791838364-wolk-6", "zoek": "neemt deel aan werkoverleg of een werkvergadering SAMEN AAN TAFEL LUISTEREN IK ZEG IETS"}, {"nr": 117, "domein": "VRIJE TIJD", "subdomein": "Invulling van de vrije tijd", "ik_doel": "Ik kan op zoek gaan naar nieuwe dingen om te doen in de vrije tijd of op vakantie.", "img": "../img/117.jpg?v=1791834288-wolk-6", "zoek": "verkent verschillende mogelijkheden om vrije tijd en vakantie in te vullen WAT KAN IK DOEN? ZOEKEN UITSTAP / VAKANTIE"}, {"nr": 118, "domein": "VRIJE TIJD", "subdomein": "Invulling van de vrije tijd", "ik_doel": "Ik kan kiezen voor een mix van verschillende, leuke activiteiten.", "img": "../img/118.jpg?v=1791836608-wolk-6", "zoek": "maakt een evenwichtige en gevarieerde keuze voor vrije tijd en vakantie BEWEGEN CREATIEF RUSTIG"}, {"nr": 119, "domein": "VRIJE TIJD", "subdomein": "Invulling van de vrije tijd", "ik_doel": "Ik kan knutselen of proberen werken met verschillende materialen en technieken.", "img": "../img/119.jpg?v=1791836628-wolk-6", "zoek": "experimenteert met verschillende materialen en technieken VERF KLEI PAPIER EN SCHAAR"}, {"nr": 120, "domein": "VRIJE TIJD", "subdomein": "Invulling van de vrije tijd", "ik_doel": "Ik kan ontdekken hoe ik muziek of klanken kan maken met instrumenten.", "img": "../img/120.jpg?v=1791836651-wolk-6", "zoek": "experimenteert met klankbronnen en muziekinstrumenten TROMMEL GITAAR ZINGEN"}, {"nr": 121, "domein": "VRIJE TIJD", "subdomein": "Invulling van de vrije tijd", "ik_doel": "Ik kan ontdekken hoe mijn lichaam kan bewegen (zoals bij dans).", "img": "../img/121.jpg?v=1791836672-wolk-6", "zoek": "experimenteert met de bewegingsmogelijkheden van het eigen lichaam DANSEN SPRINGEN STRETCHEN"}, {"nr": 122, "domein": "VRIJE TIJD", "subdomein": "Invulling van de vrije tijd", "ik_doel": "Ik kan toneelspelen en experimenteren met dramatische expressie.", "img": "../img/122.jpg?v=1791836692-wolk-6", "zoek": "experimenteert met dramatische expressie VERKLEDEN ROL SPELEN APPLAUS!"}, {"nr": 123, "domein": "VRIJE TIJD", "subdomein": "Invulling van de vrije tijd", "ik_doel": "Ik heb een hobby die ik leuk vind en verder opbouw.", "img": "../img/123.jpg?v=1791836715-wolk-6", "zoek": "bouwt een hobby uit IK KIES EEN HOBBY OEFENEN STEEDS BETER"}, {"nr": 124, "domein": "VRIJE TIJD", "subdomein": "Participeren in vrije tijd", "ik_doel": "Ik kan mezelf bezighouden als ik me verveel, zonder anderen te storen.", "img": "../img/124.jpg?v=1791836737-wolk-6", "zoek": "vult lege tijd op een voor zichzelf zinvolle wijze in en houdt daarbij rekening met anderen IK VERVEEL ME IK ZOEK IETS RUSTIG BEZIG"}, {"nr": 125, "domein": "VRIJE TIJD", "subdomein": "Participeren in vrije tijd", "ik_doel": "Ik kan vrienden maken via mijn hobby of club (netwerk uitbouwen).", "img": "../img/125.jpg?v=1791836757-wolk-6", "zoek": "bouwt een persoonlijk netwerk op in kader van gekozen vrijetijdsbesteding MIJN CLUB KENNISMAKEN NIEUWE VRIENDEN"}, {"nr": 126, "domein": "VRIJE TIJD", "subdomein": "Participeren in vrije tijd", "ik_doel": "Ik word rustig en ontspannen door mijn vrije tijd of hobby.", "img": "../img/126.jpg?v=1791836777-wolk-6", "zoek": "komt tot rust en ontspanning door vrijetijdsbesteding DRUKKE DAG MIJN HOBBY ONTSPANNEN"}, {"nr": 127, "domein": "VRIJE TIJD", "subdomein": "Participeren in vrije tijd", "ik_doel": "Ik ben een goed lid van mijn sportclub of vereniging.", "img": "../img/127.jpg?v=1791836798-wolk-6", "zoek": "gedraagt zich als volwaardig lid van een gekozen vereniging LID WORDEN MEEDOEN HELPEN IN DE CLUB"}, {"nr": 128, "domein": "VRIJE TIJD", "subdomein": "Participeren in vrije tijd", "ik_doel": "Ik ken de regels van een spel en kan eerlijk spelen (fairplay).", "img": "../img/128.jpg?v=1791836820-wolk-6", "zoek": "respecteert spelregels en de regels van fairplay SPELREGELS EERLIJK SPELEN HAND GEVEN"}, {"nr": 129, "domein": "VRIJE TIJD", "subdomein": "Participeren in vrije tijd", "ik_doel": "Ik weet welke kleren of materialen ik nodig heb voor mijn hobby.", "img": "../img/129.jpg?v=1791836840-wolk-6", "zoek": "schaft gepast materiaal en uitrusting aan WELKE HOBBY? WAT HEB IK NODIG? IN MIJN SPORTZAK"}, {"nr": 130, "domein": "OVERKOEPELEND", "subdomein": "Ondersteuning", "ik_doel": "Ik kan het hulpmiddel (zoals een bril, stappenplan of kalender) kiezen dat ik nodig heb.", "img": "../img/130.jpg?v=1791836863-wolk-6", "zoek": "kiest een adequaat hulpmiddel WAT HEB IK NODIG? KIEZEN DIT HELPT MIJ ✓"}, {"nr": 131, "domein": "OVERKOEPELEND", "subdomein": "Ondersteuning", "ik_doel": "Ik kan met mijn hulpmiddelen werken en ermee omgaan.", "img": "../img/131.jpg?v=1791836884-wolk-6", "zoek": "gaat om met hulpmiddelen GEBRUIKEN VERZORGEN OPBERGEN"}, {"nr": 132, "domein": "OVERKOEPELEND", "subdomein": "Ondersteuning", "ik_doel": "Ik kan op een goede manier om hulp vragen als ik dat nodig heb.", "img": "../img/132.jpg?v=1791836906-wolk-6", "zoek": "stelt een hulpvraag IK LOOP VAST HAND OPSTEKEN KUN JE MIJ HELPEN?"}, {"nr": 133, "domein": "OVERKOEPELEND", "subdomein": "Ondersteuning", "ik_doel": "Ik kan zelf regelen dat ik de juiste hulp of ondersteuning krijg.", "img": "../img/133.jpg?v=1791836925-wolk-6", "zoek": "organiseert ondersteuning WIE KAN HELPEN? AFSPRAAK MAKEN HULP OP TIJD ✓"}, {"nr": 134, "domein": "OVERKOEPELEND", "subdomein": "Ondersteuning", "ik_doel": "Ik kan zeggen of tonen wat ik liever heb of wat mijn voorkeur is.", "img": "../img/134.jpg?v=1791836946-wolk-6", "zoek": "communiceert persoonlijke voorkeuren DIT VIND IK LEUK DIT LIEVER NIET IK ZEG HET"}, {"nr": 135, "domein": "OVERKOEPELEND", "subdomein": "Ondersteuning", "ik_doel": "Ik kan goed en beleefd omgaan met mensen die mij helpen.", "img": "../img/135.jpg?v=1791836966-wolk-6", "zoek": "gaat om met hulpverleners GOEDEMORGEN! SAMEN PRATEN DANKJEWEL!"}, {"nr": 136, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik kan realistische keuzes maken voor mezelf.", "img": "../img/136.jpg?v=1791836986-wolk-6", "zoek": "maakt realistische keuzes KEUZES KAN IK DIT? GOEDE KEUZE ✓"}, {"nr": 137, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik durf zelf initiatief te nemen en een plan te maken.", "img": "../img/137.jpg?v=1791837006-wolk-6", "zoek": "neemt initiatief IDEE PLAN MAKEN STARTEN"}, {"nr": 138, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik kan mijn eigen taken en activiteiten zelf organiseren.", "img": "../img/138.jpg?v=1791837027-wolk-6", "zoek": "organiseert zijn activiteiten MIJN TAKEN VOLGORDE KLAAR ✓"}, {"nr": 139, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik sta open voor nieuwe ervaringen of ideeën.", "img": "../img/139.jpg?v=1791837047-wolk-6", "zoek": "staat open voor nieuwe ervaringen IETS NIEUWS PROBEREN LEUK!"}, {"nr": 140, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik kan nadenken over wat ik later wil en kan bereiken (toekomstperspectief).", "img": "../img/140.jpg?v=1791838392-wolk-6", "zoek": "tekent een realistisch toekomstperspectief uit. NU LATER MIJN DROOM"}, {"nr": 141, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik kan meepraten en meedoen als we samen iets beslissen.", "img": "../img/141.jpg?v=1791837067-wolk-6", "zoek": "neemt actief deel aan het besluitvormingsproces SAMEN BESLISSEN MIJN IDEE BESLIST ✓"}, {"nr": 142, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik kan onderhandelen (praten over een oplossing waar iedereen blij mee is).", "img": "../img/142.jpg?v=1791837087-wolk-6", "zoek": "is onderhandelingsvaardig IK WIL… / JIJ WIL… PRATEN ALLEBEI BLIJ"}, {"nr": 143, "domein": "OVERKOEPELEND", "subdomein": "Zelfsturing", "ik_doel": "Ik weet hoe ik een probleem kan aanpakken of oplossen.", "img": "../img/143.jpg?v=1791837108-wolk-6", "zoek": "lost problemen op PROBLEEM? OPLOSSINGEN BEDENKEN OPGELOST ✓"}, {"nr": 144, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik herken gevaar en kan dit vertellen of tonen aan iemand (signaleren).", "img": "../img/144.jpg?v=1791837131-wolk-6", "zoek": "signaleert gevaar GEVAAR! IK ZIE HET IK VERTEL HET"}, {"nr": 145, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik weet hoe ik voorzichtig met gevaar moet omgaan.", "img": "../img/145.jpg?v=1791837153-wolk-6", "zoek": "gaat om met gevaar GEVAAR VOORZICHTIG VEILIG ✓"}, {"nr": 146, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik houd me aan de veiligheidsregels.", "img": "../img/146.jpg?v=1791837174-wolk-6", "zoek": "houdt zich aan veiligheidsvoorschriften REGELS IK VOLG ZE VEILIG ✓"}, {"nr": 147, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik weet wat ik moet doen bij een noodgeval.", "img": "../img/147.jpg?v=1791834308-wolk-6", "zoek": "reageert gepast in noodsituaties NOODGEVAL! BEL 112 HULP KOMT"}, {"nr": 148, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik kan opdrachten doen en mijn bewegingen (coördinatie) goed onder controle houden.", "img": "../img/148.jpg?v=1791837192-wolk-6", "zoek": "voert opdrachten met een goede coördinatie van bewegingen uit KIJKEN GOOIEN EN VANGEN GELUKT ✓"}, {"nr": 149, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik ben mobiel en kan mij verplaatsen.", "img": "../img/149.jpg?v=1791837215-wolk-6", "zoek": "is mobiel STAPPEN FIETSEN MET ROLSTOEL"}, {"nr": 150, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik verplaats me op een veilige manier in het verkeer.", "img": "../img/150.jpg?v=1791837240-wolk-6", "zoek": "verplaatst zich veilig in het verkeer STOPPEN KIJKEN OVERSTEKEN"}, {"nr": 151, "domein": "OVERKOEPELEND", "subdomein": "Veiligheid en mobiliteit", "ik_doel": "Ik kan de bus, trein, tram of ander gemeenschappelijk vervoer gebruiken.", "img": "../img/151.jpg?v=1791837262-wolk-6", "zoek": "maakt gebruik van openbaar of ander gemeenschappelijk vervoer HALTE INSTAPPEN UITSTAPPEN"}, {"nr": 152, "domein": "OVERKOEPELEND", "subdomein": "Numerieke ontwikkeling", "ik_doel": "Ik kan plannen wat ik een dag, week, maand of jaar moet doen.", "img": "../img/152.jpg?v=1791837284-wolk-6", "zoek": "plant zijn dag-, week, maand- en jaarritme DAG WEEK MAAND EN JAAR"}, {"nr": 153, "domein": "OVERKOEPELEND", "subdomein": "Numerieke ontwikkeling", "ik_doel": "Ik kan taken doen waarbij ik moet tellen, meten of rekenen.", "img": "../img/153.jpg?v=1791837307-wolk-6", "zoek": "voert taken uit waarvoor rekenkundige vaardigheden nodig zijn TELLEN METEN REKENEN"}, {"nr": 154, "domein": "OVERKOEPELEND", "subdomein": "Numerieke ontwikkeling", "ik_doel": "Ik kan begrippen zoals links, rechts, boven of onder (ruimtelijke richting) gebruiken bij een taak.", "img": "../img/154.jpg?v=1791837329-wolk-6", "zoek": "voert taken uit waarvoor ruimtelijke richtingsbegrippen nodig zijn LINKS / RECHTS BOVEN / ONDER VOOR / ACHTER"}, {"nr": 155, "domein": "OVERKOEPELEND", "subdomein": "Numerieke ontwikkeling", "ik_doel": "Ik kan met cijfers en aantallen werken (numerieke informatie).", "img": "../img/155.jpg?v=1791838426-wolk-6", "zoek": "gebruikt numerieke informatie KLOK PRIJS HUISNUMMER"}, {"nr": 156, "domein": "OVERKOEPELEND", "subdomein": "Talige ontwikkeling", "ik_doel": "Ik kan een taak doen waarbij ik moet lezen, luisteren of praten (talige vaardigheden).", "img": "../img/156.jpg?v=1791837350-wolk-6", "zoek": "voert taken uit waarvoor talige vaardigheden nodig zijn LEZEN LUISTEREN PRATEN"}, {"nr": 157, "domein": "OVERKOEPELEND", "subdomein": "Talige ontwikkeling", "ik_doel": "Ik kies het beste middel om iets te vertellen (vb. telefoon, briefje, berichtje of pictogrammen).", "img": "../img/157.jpg?v=1791837371-wolk-6", "zoek": "gebruikt het meest geschikte communicatiemiddel BELLEN BERICHTJE PICTOKAART"}, {"nr": 158, "domein": "OVERKOEPELEND", "subdomein": "Talige ontwikkeling", "ik_doel": "Ik kies of ik spreek, schrijf of gebaren gebruik om iets te vertellen.", "img": "../img/158.jpg?v=1791837394-wolk-6", "zoek": "gebruikt de meest geschikte communicatievorm SPREKEN SCHRIJVEN GEBAREN"}, {"nr": 159, "domein": "OVERKOEPELEND", "subdomein": "Talige ontwikkeling", "ik_doel": "Ik kan talige informatie (letters, zinnen, verhalen) gebruiken en begrijpen.", "img": "../img/159.jpg?v=1791837413-wolk-6", "zoek": "gebruikt talige informatie LETTERS ZINNEN VERHALEN"}, {"nr": 160, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik werk altijd veilig en verantwoord op de computer of tablet (ICT).", "img": "../img/160.jpg?v=1791837435-wolk-6", "zoek": "gebruikt ICT op een veilige, verantwoorde en doelmatige manier GEHEIM WACHTWOORD OPGELET: RARE BERICHTEN OP TIJD STOPPEN"}, {"nr": 161, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan zelfstandig oefenen op de computer of tablet.", "img": "../img/161.jpg?v=1791837454-wolk-6", "zoek": "oefent zelfstandig in een door ICT- ondersteunde leeromgeving OEFENING OPENEN ZELF OEFENEN SCORE"}, {"nr": 162, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan zelfstandig iets nieuws leren op de computer of tablet.", "img": "../img/162.jpg?v=1791837474-wolk-6", "zoek": "leert zelfstandig in een door ICT-ondersteunde leeromgeving UITLEG BEKIJKEN ZELF LEREN NU WEET IK HET!"}, {"nr": 163, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan de computer gebruiken om iets creatiefs te maken (tekenen, tekstjes).", "img": "../img/163.jpg?v=1791837494-wolk-6", "zoek": "gebruikt ICT om eigen ideeën creatief vorm te geven TEKENEN TEKSTJE TYPEN KAARTJE MAKEN"}, {"nr": 164, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan met de computer dingen opzoeken en opslaan.", "img": "../img/164.jpg?v=1791837514-wolk-6", "zoek": "zoekt, verwerkt en bewaart digitale informatie met behulp van ICT ZOEKEN VINDEN OPSLAAN"}, {"nr": 165, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan met de computer iets voorstellen of presenteren aan de klas.", "img": "../img/165.jpg?v=1791837534-wolk-6", "zoek": "gebruikt ICT bij het voorstellen van informatie aan anderen PRESENTATIE MAKEN TONEN AAN DE KLAS APPLAUS"}, {"nr": 166, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan op een veilige manier een berichtje typen en met anderen communiceren online.", "img": "../img/166.jpg?v=1791837555-wolk-6", "zoek": "gebruikt ICT om op een veilige, verantwoorde en doelmatige manier te communiceren BERICHTJE TYPEN VRIENDELIJK BLIJVEN PRIVÉ BLIJFT PRIVÉ"}, {"nr": 167, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan de juiste app of website kiezen die ik nodig heb voor mijn taak.", "img": "../img/167.jpg?v=1791837575-wolk-6", "zoek": "kiest afhankelijk van het te bereiken doel adequaat uit verschillende ICT- toepassingen MIJN TAAK WELKE APP? DEZE! ✓"}, {"nr": 168, "domein": "OVERKOEPELEND", "subdomein": "Omgaan met ICT", "ik_doel": "Ik kan nadenken over hoe ik de computer heb gebruikt en of ik dit de volgende keer beter kan doen.", "img": "../img/168.jpg?v=1791837593-wolk-6", "zoek": "stuurt het handelen bij na reflectie over het eigen ICT-gebruik en dat van anderen GEBRUIKT NADENKEN VOLGENDE KEER BETER"}];
+const byNr = Object.fromEntries(DOELEN.map(d => [d.nr, d]));
+const DOM = {
+  "WONEN":        {c:"--wonen",  t:"--wonen-t",  i:"--wonen-i"},
+  "WERKEN":       {c:"--werken", t:"--werken-t", i:"--werken-i"},
+  "VRIJE TIJD":   {c:"--vrij",   t:"--vrij-t",   i:"--vrij-i"},
+  "OVERKOEPELEND":{c:"--over",   t:"--over-t",   i:"--over-i"}
+};
+const TALENT = {c:"--talent", t:"--talent-t", i:"--talent-i"};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pal = p => ({c:css(p.c), t:css(p.t), i:css(p.i)});
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let tt; function toast(t){ const el=$("#toast"); el.textContent=t; el.hidden=false; clearTimeout(tt); tt=setTimeout(()=>el.hidden=true,2600); }
+const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+for (const d of DOELEN) d._zoek = norm([d.nr, d.domein, d.subdomein, d.ik_doel, d.zoek || ""].join(" "));
+
+/* ---------- cycli ---------- */
+function schooljaarVan(dt){ const y = dt.getFullYear(); return dt.getMonth() >= 7 ? `${y}-${y+1}` : `${y-1}-${y}`; }
+const cycKey = c => `${c.jaar}|${c.nr}`;
+const cycLabel = key => { const [jaar, nr] = key.split("|"); return `Cyclus ${nr} - ${jaar}`; };
+const cycSort = (a, b) => { const [ja, na] = a.split("|"), [jb, nb] = b.split("|"); return ja.localeCompare(jb) || (+na - +nb); };
+
+/* ---------- lokale database ---------- */
+const KEY = "doelkaartjes-db-v1";
+let db = {versie:2, leerlingen:[], instellingen:{layout:"6", sorted:false, cyclus:{nr:1, jaar:schooljaarVan(new Date())}}};
+try {
+  const s = JSON.parse(localStorage.getItem(KEY) || "null");
+  if (s && Array.isArray(s.leerlingen)){
+    db.leerlingen = s.leerlingen;
+    db.instellingen = Object.assign(db.instellingen, s.instellingen || {});
+    if (!s.versie || s.versie < 2){ db.instellingen.layout = "6"; }      // nieuwe standaard: 6 per blad
+  }
+} catch(e) {}
+if (!db.instellingen.cyclus) db.instellingen.cyclus = {nr:1, jaar:schooljaarVan(new Date())};
+const ck = () => cycKey(db.instellingen.cyclus);
+// oudere opslag (doelen rechtstreeks bij de leerling) → in de huidige cyclus zetten
+function migreer(l, key){
+  if (!l.cycli || typeof l.cycli !== "object") l.cycli = {};
+  if (Array.isArray(l.doelen) || l.talent){
+    if ((l.doelen && l.doelen.length) || l.talent)
+      l.cycli[key] = {doelen:(l.doelen||[]).map(Number).filter(n => byNr[n]), talent: byNr[+l.talent] ? +l.talent : null,
+                      gemaakt:l.bijgewerkt || new Date().toISOString(), bijgewerkt:l.bijgewerkt || new Date().toISOString()};
+    delete l.doelen; delete l.talent;
+  }
+  return l;
+}
+db.leerlingen.forEach(l => migreer(l, ck()));
+db.versie = 2;
+let storageOk = true;
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(db)); storageOk = true; }
+  catch(e){ storageOk = false; toast("Opslaan in deze browser lukt niet. Maak een back-up."); }
+}
+save();
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+let curId = null; const checked = new Set();
+const cur = () => db.leerlingen.find(l => l.id === curId);
+const LEEG = {doelen:[], talent:null};
+const cyc = (l, key = ck()) => (l && l.cycli[key]) || LEEG;           // lezen
+function cycW(l, key = ck()){                                          // schrijven
+  if (!l.cycli[key]){ const nu = new Date().toISOString(); l.cycli[key] = {doelen:[], talent:null, gemaakt:nu, bijgewerkt:nu}; }
+  return l.cycli[key];
+}
+function opruimen(l){ for (const [k, c] of Object.entries(l.cycli)) if (!c.doelen.length && !c.talent) delete l.cycli[k]; }
+const nieuweLeerling = (naam = "", klas = "") => ({id:uid(), naam, klas, cycli:{}, bijgewerkt:new Date().toISOString()});
+
+/* cyclus-keuze */
+(function(){
+  const nu = new Date(), y = nu.getMonth() >= 7 ? nu.getFullYear() : nu.getFullYear() - 1;
+  const jaren = new Set([`${y-1}-${y}`, `${y}-${y+1}`, `${y+1}-${y+2}`, db.instellingen.cyclus.jaar]);
+  db.leerlingen.forEach(l => Object.keys(l.cycli).forEach(k => jaren.add(k.split("|")[0])));
+  $("#cycJaar").innerHTML = [...jaren].sort().map(j => `<option>${j}</option>`).join("");
+  // 2 cycli per schooljaar; een hoger nummer dat al ergens bewaard is, blijft zichtbaar zodat er niets verloren gaat
+  const nrs = new Set([1, 2, +db.instellingen.cyclus.nr]);
+  db.leerlingen.forEach(l => Object.keys(l.cycli).forEach(k => nrs.add(+k.split("|")[1])));
+  $("#cycNr").innerHTML = [...nrs].sort((a, b) => a - b).map(n => `<option value="${n}">Cyclus ${n}</option>`).join("");
+})();
+function toonCyclus(){ $("#cycNr").value = String(db.instellingen.cyclus.nr); $("#cycJaar").value = db.instellingen.cyclus.jaar; }
+function zetCyclus(nr, jaar){
+  db.instellingen.cyclus = {nr:+nr, jaar}; save(); toonCyclus();
+  renderList(); if (cur()) select(curId);
+  toast(`Je werkt nu in ${cycLabel(ck())}`);
+}
+$("#cycNr").addEventListener("change", e => zetCyclus(e.target.value, $("#cycJaar").value));
+$("#cycJaar").addEventListener("change", e => zetCyclus($("#cycNr").value, e.target.value));
+toonCyclus();
+
+/* ---------- nummers lezen ---------- */
+const heeftLetters = v => /[a-zà-ÿ]/i.test(v);
+function parseNrs(txt){
+  const ok = [], bad = [];
+  for (const part of String(txt).split(/[\s,;]+/).filter(Boolean)){
+    const m = part.match(/^(\d{1,3})(?:-(\d{1,3}))?$/);
+    if (!m){ bad.push(part); continue; }
+    let a = +m[1], b = m[2] ? +m[2] : a; if (a > b) [a,b] = [b,a];
+    if (b - a > 200){ bad.push(part); continue; }
+    for (let n = a; n <= b; n++) (byNr[n] ? ok : bad).push(byNr[n] ? n : String(n));
+  }
+  return {ok, bad};
+}
+
+/* ---------- zoeken op woord: één keuzelijstje onder het invulveld ---------- */
+function zoek(q){
+  const woorden = norm(q).split(/[\s,;]+/).filter(w => w.length >= 2);
+  if (!woorden.length) return [];
+  return DOELEN.map(d => {
+      if (!woorden.every(w => d._zoek.includes(w))) return null;
+      const ik = norm(d.ik_doel); let score = 0;
+      for (const w of woorden){ if (ik.includes(w)) score += 2; if (new RegExp("\\b" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(ik)) score += 1; }
+      return {d, score};
+    }).filter(Boolean).sort((a, b) => b.score - a.score || a.d.nr - b.d.nr).slice(0, 12).map(x => x.d);
+}
+function maakZoeker(inp, lijst, {kies, gekozen, waarde}){
+  let items = [], act = -1;
+  const sluit = () => { lijst.hidden = true; items = []; act = -1; inp.setAttribute("aria-expanded", "false"); };
+  const markeer = () => [...lijst.querySelectorAll("li[data-nr]")].forEach((li, i) => li.setAttribute("aria-selected", i === act));
+  function toon(){
+    items = zoek(inp.value);
+    lijst.innerHTML = items.length ? items.map(d => {
+        const p = DOM[d.domein], al = gekozen(d.nr);
+        return `<li role="option" data-nr="${d.nr}" class="${al ? "al" : ""}" style="--i:var(${p.i})">
+          ${d.img ? `<img src="${esc(d.img)}" alt="" loading="lazy">` : `<span class="ph"></span>`}
+          <b>${d.nr}</b><span class="t">${esc(d.ik_doel)}<small>${esc(d.domein)} · ${esc(d.subdomein)}</small></span>
+          <span class="tag">${al ? "✓ gekozen" : ""}</span></li>`; }).join("")
+      : `<li class="leeg">Niets gevonden voor “${esc(inp.value.trim())}”.</li>`;
+    act = items.findIndex(d => !gekozen(d.nr)); markeer();
+    lijst.hidden = false; inp.setAttribute("aria-expanded", "true");
+  }
+  function neem(i){
+    const d = items[i]; if (!d || gekozen(d.nr)) return;
+    kies(d.nr); inp.value = waarde ? waarde(d.nr) : ""; sluit(); inp.focus();
+  }
+  inp.addEventListener("input", () => { if (heeftLetters(inp.value) && inp.value.trim().length >= 2) toon(); else sluit(); });
+  inp.addEventListener("keydown", e => {
+    if (lijst.hidden) return;
+    if (e.key === "ArrowDown"){ e.preventDefault(); act = Math.min(items.length - 1, act + 1); markeer(); lijst.querySelectorAll("li")[act]?.scrollIntoView({block:"nearest"}); }
+    else if (e.key === "ArrowUp"){ e.preventDefault(); act = Math.max(0, act - 1); markeer(); lijst.querySelectorAll("li")[act]?.scrollIntoView({block:"nearest"}); }
+    else if (e.key === "Enter"){ e.preventDefault(); e.stopImmediatePropagation(); neem(act < 0 ? 0 : act); }
+    else if (e.key === "Escape"){ e.preventDefault(); e.stopImmediatePropagation(); sluit(); }
+  });
+  lijst.addEventListener("mousedown", e => { const li = e.target.closest("li[data-nr]"); if (!li) return; e.preventDefault(); neem(items.findIndex(d => d.nr === +li.dataset.nr)); });
+  inp.addEventListener("blur", () => setTimeout(sluit, 120));
+  return {sluit};
+}
+
+/* ---------- lijst leerlingen ---------- */
+let zichtbaar = [];
+function renderList(){
+  const q = $("#search").value.trim().toLowerCase();
+  const ls = db.leerlingen.filter(l => !q || l.naam.toLowerCase().includes(q) || (l.klas||"").toLowerCase().includes(q))
+    .sort((a,b) => (a.klas||"").localeCompare(b.klas||"") || a.naam.localeCompare(b.naam));
+  $("#list").innerHTML = ls.length ? ls.map(l => { const c = cyc(l); return `
+    <div class="pupil ${l.id===curId?"sel":""}" data-id="${l.id}">
+      <input type="checkbox" aria-label="Aanvinken voor PDF: ${esc(l.naam||"naamloos")}" ${checked.has(l.id)?"checked":""}>
+      <div style="min-width:0"><div class="nm">${esc(l.naam || "(nog geen naam)")}</div>${l.klas?`<div class="kl">${esc(l.klas)}</div>`:""}</div>
+      <span class="ct" title="doelen in ${cycLabel(ck())}">${c.doelen.length || c.talent ? c.doelen.length + (c.talent ? " + ★" : "") : "–"}</span>
+    </div>`; }).join("") : `<p class="empty">${db.leerlingen.length ? "Geen leerling gevonden." : "Nog geen leerlingen. Klik op + Nieuw."}</p>`;
+  for (const id of [...checked]) if (!db.leerlingen.some(l => l.id === id)) checked.delete(id);
+  $("#multiBtn").disabled = !checked.size;
+  $("#multiDel").hidden = !checked.size;
+  $("#multiDel").textContent = `Aangevinkte verwijderen (${checked.size})`; $("#multiDel").dataset.sure = "";
+  $("#allBox").checked = !!ls.length && ls.every(l => checked.has(l.id));
+  $("#allBox").indeterminate = !$("#allBox").checked && ls.some(l => checked.has(l.id));
+  $("#listCount").textContent = `${db.leerlingen.length} leerling${db.leerlingen.length === 1 ? "" : "en"}`;
+  zichtbaar = ls;
+  $("#multiBtn").textContent = checked.size ? `PDF voor aangevinkte (${checked.size})` : "PDF voor aangevinkte";
+}
+$("#list").addEventListener("click", e => {
+  const row = e.target.closest(".pupil"); if (!row) return;
+  if (e.target.type === "checkbox"){ e.target.checked ? checked.add(row.dataset.id) : checked.delete(row.dataset.id); renderList(); return; }
+  select(row.dataset.id);
+});
+$("#search").addEventListener("input", renderList);
+$("#allBox").addEventListener("change", e => {
+  for (const l of zichtbaar) e.target.checked ? checked.add(l.id) : checked.delete(l.id);
+  renderList();
+});
+$("#multiDel").addEventListener("click", () => {
+  const b = $("#multiDel");
+  if (b.dataset.sure !== "1"){ b.dataset.sure = "1"; b.textContent = `Zeker? ${checked.size} leerling${checked.size===1?"":"en"} verwijderen`; return; }
+  const n = checked.size;
+  db.leerlingen = db.leerlingen.filter(l => !checked.has(l.id));
+  if (checked.has(curId)) curId = null;
+  checked.clear(); save(); select(curId); toast(`${n} leerling${n===1?"":"en"} verwijderd`);
+});
+$("#bulkBtn").addEventListener("click", () => { $("#bulk").hidden = !$("#bulk").hidden; if (!$("#bulk").hidden) $("#bulkNames").focus(); });
+$("#bulkCancel").addEventListener("click", () => { $("#bulk").hidden = true; });
+$("#bulkAdd").addEventListener("click", () => {
+  const klas = $("#bulkKlas").value.trim();
+  const namen = $("#bulkNames").value.split(/[,;\n]+/).map(x => x.trim().replace(/\s+/g, " ")).filter(Boolean);
+  const bestaat = n => db.leerlingen.some(l => l.naam.trim().toLowerCase() === n.toLowerCase() && (l.klas || "") === klas);
+  const nieuw = [], dubbel = [];
+  for (const n of namen){
+    if (bestaat(n) || nieuw.some(x => x.naam.toLowerCase() === n.toLowerCase())){ dubbel.push(n); continue; }
+    nieuw.push(nieuweLeerling(n, klas));
+  }
+  if (!nieuw.length){ toast(dubbel.length ? "Die leerlingen staan al in de lijst." : "Typ eerst een of meer namen."); return; }
+  db.leerlingen.push(...nieuw); save();
+  $("#bulkNames").value = ""; $("#bulk").hidden = true;
+  select(nieuw[0].id);
+  toast(`${nieuw.length} leerling${nieuw.length===1?"":"en"} toegevoegd` + (dubbel.length ? `, ${dubbel.length} stond al in de lijst` : ""));
+});
+$("#newBtn").addEventListener("click", () => {
+  const l = nieuweLeerling(); db.leerlingen.push(l); save(); select(l.id); $("#naam").focus();
+});
+
+/* ---------- editor ---------- */
+function select(id){
+  curId = id; const l = cur();
+  $("#welcome").hidden = !!l; $("#form").hidden = !l;
+  if (l){
+    $("#naam").value = l.naam; $("#klas").value = l.klas || "";
+    $("#doelIn").value = ""; $("#talentIn").value = cyc(l).talent || "";
+    $("#doelWarn").hidden = $("#talentWarn").hidden = true;
+    renderChips(); renderVorige(); renderHist(); renderPreview();
+  }
+  renderList();
+}
+function touch(){
+  const l = cur(); opruimen(l); const c = l.cycli[ck()]; const nu = new Date().toISOString();
+  l.bijgewerkt = nu; if (c) c.bijgewerkt = nu; save();
+  $("#saved").textContent = storageOk ? "Bewaard in deze browser" : "Niet bewaard!";
+  renderVorige(); renderHist();
+}
+$("#naam").addEventListener("input", e => { cur().naam = e.target.value; touch(); renderList(); schedulePreview(); });
+$("#klas").addEventListener("input", e => { cur().klas = e.target.value.trim(); touch(); renderList(); });
+
+function chip(nr, removable, talent){
+  const d = byNr[nr], p = talent ? TALENT : DOM[d.domein];
+  return `<span class="chip" style="--c:var(${p.c});--t:var(${p.t});--i:var(${p.i})" title="${esc(d.ik_doel)}"><b>${talent?"★ ":""}${nr}</b><span>${esc(d.ik_doel)}</span>${removable?`<button aria-label="Verwijder doel ${nr}" data-rm="${nr}">×</button>`:""}</span>`;
+}
+function renderChips(){
+  const l = cur(), c = cyc(l);
+  $("#cycHint").textContent = `(${cycLabel(ck())})`;
+  $("#doelChips").innerHTML = c.doelen.map(n => chip(n, true)).join("") || `<span class="hint">Nog geen doelen in deze cyclus.</span>`;
+  $("#talentChip").innerHTML = c.talent ? chip(c.talent, true, true) : "";
+  const n = c.doelen.length + (c.talent ? 1 : 0);
+  $("#prevTitle").textContent = `Voorbeeld (${c.doelen.length} doel${c.doelen.length===1?"":"en"}${c.talent?" + talent":""} = ${n} kaartje${n===1?"":"s"})`;
+}
+function nrToevoegen(nrs){
+  const l = cur(), c = cycW(l); let added = 0;
+  for (const n of nrs) if (!c.doelen.includes(n)){ c.doelen.push(n); added++; }
+  if (added){ touch(); renderChips(); renderList(); schedulePreview(); }
+  return added;
+}
+function addDoelen(){
+  const v = $("#doelIn").value; if (!v.trim() || heeftLetters(v)) return;
+  const {ok, bad} = parseNrs(v);
+  nrToevoegen(ok);
+  $("#doelWarn").hidden = !bad.length;
+  $("#doelWarn").textContent = bad.length ? `Niet gevonden: ${bad.join(", ")}. Doelen lopen van 1 tot ${DOELEN.length}.` : "";
+  $("#doelIn").value = bad.join(", ");
+}
+const doelZoeker = maakZoeker($("#doelIn"), $("#doelAc"), {
+  kies: n => { nrToevoegen([n]); toast(`Doel ${n} toegevoegd`); },
+  gekozen: n => cyc(cur()).doelen.includes(n)
+});
+$("#addBtn").addEventListener("click", addDoelen);
+$("#doelIn").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); addDoelen(); } });
+// nummers verschijnen al tijdens het typen: alles vóór de laatste komma (of spatie) wordt meteen toegevoegd
+$("#doelIn").addEventListener("input", e => {
+  const v = e.target.value; if (heeftLetters(v)) return;      // woorden → zoeklijstje
+  const m = v.match(/^(.*[,;\s])([^,;\s]*)$/s);
+  if (!m) return;
+  if (!m[1].replace(/[,;\s]/g, "")){ if (v !== m[2]) e.target.value = m[2]; return; }
+  const {ok, bad} = parseNrs(m[1]);
+  e.target.value = m[2];
+  $("#doelWarn").hidden = !bad.length;
+  if (bad.length) $("#doelWarn").textContent = `Niet gevonden: ${bad.join(", ")}. Doelen lopen van 1 tot ${DOELEN.length}.`;
+  nrToevoegen(ok);
+});
+$("#doelIn").addEventListener("blur", () => setTimeout(() => { if (!heeftLetters($("#doelIn").value)) addDoelen(); }, 150));
+$("#doelChips").addEventListener("click", e => {
+  const b = e.target.closest("[data-rm]"); if (!b) return;
+  const c = cycW(cur()); c.doelen = c.doelen.filter(n => n !== +b.dataset.rm); touch(); renderChips(); renderList(); schedulePreview();
+});
+function setTalent(v){
+  const l = cur(), t = String(v).trim();
+  if (!t){ cycW(l).talent = null; $("#talentWarn").hidden = true; }
+  else if (/^\d{1,3}$/.test(t) && byNr[+t]){ cycW(l).talent = +t; $("#talentWarn").hidden = true; }
+  else { $("#talentWarn").hidden = false; $("#talentWarn").textContent = `Doel "${t}" bestaat niet. Kies één nummer van 1 tot ${DOELEN.length}.`; return; }
+  touch(); renderChips(); renderList(); schedulePreview();
+}
+const talentZoeker = maakZoeker($("#talentIn"), $("#talentAc"), {
+  kies: n => setTalent(n),
+  gekozen: n => cyc(cur()).talent === n,
+  waarde: n => String(n)
+});
+$("#talentIn").addEventListener("change", e => { if (!heeftLetters(e.target.value)) setTalent(e.target.value); });
+$("#talentIn").addEventListener("input", e => { const t = e.target.value.trim(); if (!t || (/^\d{1,3}$/.test(t) && byNr[+t])) setTalent(t); });
+$("#talentIn").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); if (!heeftLetters(e.target.value)) setTalent(e.target.value); } });
+$("#talentChip").addEventListener("click", e => { if (e.target.closest("[data-rm]")){ $("#talentIn").value = ""; setTalent(""); } });
+$("#delBtn").addEventListener("click", () => {
+  const l = cur(), b = $("#delBtn");
+  if (b.dataset.sure !== "1"){ b.dataset.sure = "1"; b.textContent = `Zeker? ${l.naam || "deze leerling"} verwijderen`; setTimeout(() => { b.dataset.sure = ""; b.textContent = "Leerling verwijderen"; }, 4000); return; }
+  db.leerlingen = db.leerlingen.filter(x => x.id !== l.id); checked.delete(l.id); save();
+  b.dataset.sure = ""; b.textContent = "Leerling verwijderen"; select(null); toast("Leerling verwijderd");
+});
+$("#layout").value = db.instellingen.layout || "6";
+$("#sorted").checked = !!db.instellingen.sorted;
+$("#layout").addEventListener("change", e => { db.instellingen.layout = e.target.value; save(); });
+$("#sorted").addEventListener("change", e => { db.instellingen.sorted = e.target.checked; save(); schedulePreview(); });
+
+/* ---------- vorige cyclus overnemen + historiek ---------- */
+function vorigeKey(l){
+  const keys = Object.keys(l.cycli).filter(k => k !== ck() && cycSort(k, ck()) < 0).sort(cycSort);
+  return keys[keys.length - 1] || null;
+}
+function renderVorige(){
+  const l = cur(), box = $("#vorige");
+  const c = cyc(l), vk = vorigeKey(l);
+  if (c.doelen.length || c.talent || !vk){ box.hidden = true; return; }
+  const v = l.cycli[vk];
+  box.innerHTML = `<span>Nog geen doelen in <b>${cycLabel(ck())}</b>. In ${cycLabel(vk)} waren het ${v.doelen.length} doel${v.doelen.length===1?"":"en"}${v.talent?" + talent":""}.</span>
+    <button class="btn small" id="copyPrev">Neem die over</button>`;
+  box.hidden = false;
+}
+$("#vorige").addEventListener("click", e => {
+  if (e.target.id !== "copyPrev") return;
+  const l = cur(), v = l.cycli[vorigeKey(l)], c = cycW(l);
+  c.doelen = [...v.doelen]; c.talent = v.talent;
+  $("#talentIn").value = c.talent || "";
+  touch(); renderChips(); renderList(); schedulePreview(); toast("Doelen overgenomen. Pas ze gerust aan.");
+});
+function renderHist(){
+  const l = cur(), keys = Object.keys(l.cycli).sort(cycSort).reverse();
+  $("#histList").innerHTML = keys.length ? keys.map(k => {
+    const c = l.cycli[k], nu = k === ck();
+    const datum = new Date(c.gemaakt || c.bijgewerkt || Date.now()).toLocaleDateString("nl-BE");
+    return `<div class="hrow ${nu ? "nu" : ""}">
+      <div class="top"><b>${cycLabel(k)}${nu ? " (huidige)" : ""}</b>
+        <button class="btn ghost small" data-pdf="${k}">PDF</button>
+        ${nu ? "" : `<button class="btn ghost small" data-open="${k}">Openen</button>`}</div>
+      <div class="nrs">${c.talent ? `★ talent: ${c.talent} · ` : ""}doelen: ${c.doelen.join(", ") || "–"} · aangemaakt ${datum}</div></div>`;
+  }).join("") : `<p class="hint">Nog geen cycli voor deze leerling.</p>`;
+}
+$("#histList").addEventListener("click", e => {
+  const pdf = e.target.closest("[data-pdf]"), open = e.target.closest("[data-open]");
+  if (pdf) makePdf([cur()], pdf.dataset.pdf);
+  if (open){ const [jaar, nr] = open.dataset.open.split("|"); if (![...$("#cycJaar").options].some(o => o.value === jaar)) $("#cycJaar").insertAdjacentHTML("beforeend", `<option>${jaar}</option>`); zetCyclus(nr, jaar); }
+});
+
+/* ---------- afbeeldingen laden ---------- */
+const imgCache = {};
+function loadImg(src){
+  if (!src) return Promise.resolve(null);
+  if (!imgCache[src]) imgCache[src] = new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+  return imgCache[src];
+}
+const ASSETS = {icoon:"../assets/doel-icoon.png", logo:"../assets/logo-styrka.png", koers:"../assets/jouw-koers.png"};
+const fontsReady = (document.fonts ? Promise.all([
+  document.fonts.load('400 40px "Atkinson Hyperlegible"'), document.fonts.load('700 40px "Atkinson Hyperlegible"')
+]).catch(()=>{}) : Promise.resolve());
+
+/* ---------- één kaartje tekenen (mm-maten, s = pixels per mm) ---------- */
+const CW = 186, CH = 82;           // kaartje in mm
+const FONT = '"Atkinson Hyperlegible", Arial, sans-serif';
+function rr(ctx, x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function wrap(ctx, words, maxW){
+  const lines = []; let line = [];
+  for (const w of words){
+    const t = [...line, w];
+    if (line.length && ctx.measureText(t.map(x=>x.t).join(" ")).width > maxW){ lines.push(line); line = [w]; } else line = t;
+  }
+  if (line.length) lines.push(line);
+  return lines;
+}
+async function drawCard(canvas, nr, talent, s){
+  const d = byNr[nr], p = pal(talent ? TALENT : DOM[d.domein]);
+  canvas.width = Math.round(CW*s); canvas.height = Math.round(CH*s);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);    // geen lege (zwarte) pixelrand in de JPEG
+  ctx.save(); ctx.scale(canvas.width / CW, canvas.height / CH);
+  const [img, icoon, logo, koers] = await Promise.all([loadImg(d.kaart || d.img), loadImg(ASSETS.icoon), loadImg(ASSETS.logo), loadImg(ASSETS.koers)]);
+  await fontsReady;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0,0,CW,CH);
+  // binnenkant: wit met golf en bol, getekend tot onder de rand (geen naad mogelijk)
+  const B = 4.2, L = B, T = B, R = CW - B, Bo = CH - B;
+  ctx.save(); rr(ctx, 0, 0, CW, CH, 8); ctx.clip();
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, CW, CH);
+  ctx.beginPath(); ctx.moveTo(R-58, 0); ctx.lineTo(R-58, T);          // golf rechtsboven
+  ctx.bezierCurveTo(R-45, T+2, R-44, T+17, R-31, T+22);
+  ctx.bezierCurveTo(R-18, T+27, R-12, T+33, R, T+46);
+  ctx.lineTo(CW, T+48); ctx.lineTo(CW, 0); ctx.closePath(); ctx.fillStyle = p.t; ctx.fill();
+  ctx.beginPath(); ctx.arc(L+7, Bo+1, 25, 0, Math.PI*2); ctx.fillStyle = p.c; ctx.fill();   // bol linksonder
+  ctx.restore();
+  // rand: één ring (buitenrand min binnenrand) er bovenop
+  const pad = (x, y, w, h, r) => { ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); };
+  ctx.beginPath(); pad(0, 0, CW, CH, 8); pad(L, T, R-L, Bo-T, 5);
+  ctx.fillStyle = p.c; ctx.fill("evenodd");
+  if (icoon){ const iw = 20, ih2 = iw * icoon.height / icoon.width; ctx.drawImage(icoon, L+2.5, Bo-2.5-ih2, iw, ih2); }
+  // domein + nummer
+  ctx.textAlign = "right"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "#26303a";
+  ctx.font = `700 5px ${FONT}`; ctx.fillText(d.domein, R-4.5, T+8.5);
+  ctx.fillStyle = p.i; ctx.font = `700 12px ${FONT}`; ctx.fillText(String(nr), R-4.5, T+21);
+  // logo "jouw koers, onze stroom" linksboven
+  if (koers){ const kw = 28, kh = kw * koers.height / koers.width; ctx.drawImage(koers, L+3.5, T+3, kw, kh); }
+  // talent-lint (onder het logo): eerst de maat, getekend na de prent zodat het altijd bovenop ligt
+  ctx.font = `700 4.4px ${FONT}`;
+  const lintTekst = "★ MIJN TALENT", lintB = ctx.measureText(lintTekst).width + 7, lintR = L + 3.5 + lintB;
+  // doelzin: eerste twee woorden in hoofdletters en in kleur; wat tussen haakjes staat, begint op een nieuwe regel
+  const zin = d.ik_doel.trim(), hk = zin.indexOf(" (");
+  const delen = hk > 0 ? [zin.slice(0, hk), zin.slice(hk + 1)] : [zin];
+  const woorden = delen.map((deel, di) => deel.split(/\s+/).map((w, i) => ({t: di === 0 && i < 2 ? w.toUpperCase() : w, hi: di === 0 && i < 2})));
+  const maxW = 112, LH = 1.22;
+  // over twee regels: zo evenwichtig mogelijk verdelen (geen los woordje op de laatste regel)
+  const breedte = ws => ctx.measureText(ws.map(x => x.t).join(" ")).width;
+  const verdeel = ws => {
+    const r = wrap(ctx, ws, maxW); if (r.length !== 2) return r;
+    let best = r, bestW = Math.max(breedte(r[0]), breedte(r[1]));
+    for (let k = 1; k < ws.length; k++){
+      const a = ws.slice(0, k), b = ws.slice(k), m = Math.max(breedte(a), breedte(b));
+      if (m <= maxW && m < bestW){ best = [a, b]; bestW = m; }
+    }
+    return best;
+  };
+  const zet = f => { ctx.font = `400 ${f}px ${FONT}`; return woorden.flatMap(verdeel); };
+  // eerst de tekst schikken; past ze niet op een leesbare grootte, dan wordt de prent wat lager
+  let ih = 49, fs = 6.4, lines = zet(fs);
+  const ruimte = h => Bo - 2 - (T + 3.5 + h + 2.5);
+  while (fs > 5.2 && lines.length * fs * LH > ruimte(ih)){ fs = +(fs - .2).toFixed(1); lines = zet(fs); }
+  if (lines.length * fs * LH > ruimte(ih)) ih = Math.max(36, ih - (lines.length * fs * LH - ruimte(ih)));
+  while (fs > 3.6 && lines.length * fs * LH > ruimte(ih)){ fs = +(fs - .2).toFixed(1); lines = zet(fs); }
+  // prent: bij het talent blijft ze rechts van het lint
+  const iy = T + 3.5, iwMax = talent ? Math.min(104, 2 * (CW/2 - lintR - 2)) : 104;
+  if (img){
+    const r = img.width / img.height; let w = ih * r, h = ih; if (w > iwMax){ w = iwMax; h = w / r; }
+    // 'vermenigvuldigen': het wit van de prent wordt doorschijnend, zodat de gekleurde golf erdoor blijft zien
+    ctx.save(); ctx.globalCompositeOperation = "multiply";
+    ctx.drawImage(img, (CW - w)/2, iy + (ih - h)/2, w, h);
+    ctx.restore();
+  } else {
+    ctx.setLineDash([1.5,1.5]); ctx.strokeStyle = "#b9c0c7"; ctx.lineWidth = .4; ctx.strokeRect((CW-80)/2, iy+4, 80, ih-8); ctx.setLineDash([]);
+    ctx.textAlign = "center"; ctx.fillStyle = "#8a939c"; ctx.font = `400 4px ${FONT}`; ctx.fillText("nog geen prent", CW/2, iy+ih/2+1.5);
+  }
+  if (talent){
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.font = `700 4.4px ${FONT}`;
+    rr(ctx, L+3.5, T+13, lintB, 8, 4); ctx.fillStyle = p.i; ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.fillText(lintTekst, L+7, T+18.6);
+  }
+  const top = iy + ih + 2.5;
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  lines.forEach((line, li) => {
+    const y = top + li * fs * 1.22;
+    const parts = line.map((w, k) => ({...w, s: (k ? " " : "") + w.t}));
+    const widths = parts.map(w => { ctx.font = `${w.hi?700:400} ${fs}px ${FONT}`; return ctx.measureText(w.s).width; });
+    let x = (CW - widths.reduce((a,b)=>a+b,0)) / 2;
+    parts.forEach((w, k) => { ctx.font = `${w.hi?700:400} ${fs}px ${FONT}`; ctx.fillStyle = w.hi ? p.i : "#1f2328"; ctx.fillText(w.s, x, y); x += widths[k]; });
+  });
+  // logo rechtsonder
+  if (logo){ const lw = 27, lh = lw * logo.height / logo.width; ctx.drawImage(logo, R - lw - 3.5, Bo - lh - 3, lw, lh); }
+  ctx.restore();
+  return canvas;
+}
+
+/* ---------- voorbeeld ---------- */
+function kaartLijst(l, key = ck()){
+  const c = cyc(l, key);
+  const doelen = db.instellingen.sorted ? [...c.doelen].sort((a,b)=>a-b) : c.doelen;
+  return [...(c.talent ? [{nr:c.talent, talent:true}] : []), ...doelen.map(n => ({nr:n, talent:false}))];
+}
+let pv, pvToken = 0;
+function schedulePreview(){ clearTimeout(pv); pv = setTimeout(renderPreview, 150); }
+async function renderPreview(){
+  const l = cur(); if (!l) return; const tok = ++pvToken;
+  const list = kaartLijst(l), box = $("#cards");
+  if (!list.length){ box.innerHTML = `<p class="hint">Voeg doelen toe om de kaartjes te zien.</p>`; return; }
+  const canvases = [];
+  for (const k of list){ const c = document.createElement("canvas"); c.setAttribute("role","img"); c.setAttribute("aria-label", `Kaartje doel ${k.nr}${k.talent?" (talent)":""}: ${byNr[k.nr].ik_doel}`); await drawCard(c, k.nr, k.talent, 4); if (tok !== pvToken) return; canvases.push(c); }
+  box.replaceChildren(...canvases);
+}
+
+/* ---------- PDF (eigen, kleine PDF-schrijver: geen externe bibliotheek nodig) ---------- */
+class PdfDoc {
+  constructor(){ this.pages = []; }
+  addPage(wmm, hmm){ this.pages.push({w: wmm*72/25.4, h: hmm*72/25.4, imgs: []}); }
+  image(canvas, x, y, w, h, q = .9){
+    const bin = atob(canvas.toDataURL("image/jpeg", q).split(",")[1]);
+    const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const k = 72/25.4; this.pages[this.pages.length-1].imgs.push({bytes, pw: canvas.width, ph: canvas.height, x: x*k, y: y*k, w: w*k, h: h*k});
+  }
+  blob(){
+    const enc = new TextEncoder(), chunks = [], offs = []; let len = 0;
+    const push = d => { const u = typeof d === "string" ? enc.encode(d) : d; chunks.push(u); len += u.length; };
+    const obj = (id, head, stream) => { offs[id] = len; push(`${id} 0 obj\n${head}\n`); if (stream){ push("stream\n"); push(stream); push("\nendstream\n"); } push("endobj\n"); };
+    push(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));   // %PDF-1.4 + binaire regel
+    let n = 3; const plan = this.pages.map(p => ({p, page: n++, cont: n++, imgs: p.imgs.map(() => n++)}));
+    obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    obj(2, `<< /Type /Pages /Kids [${plan.map(x => x.page + " 0 R").join(" ")}] /Count ${plan.length} >>`);
+    const f = v => (Math.round(v*100)/100).toString();
+    for (const x of plan){
+      const p = x.p;
+      const xo = x.imgs.map((id, i) => `/I${i} ${id} 0 R`).join(" ");
+      obj(x.page, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${f(p.w)} ${f(p.h)}] /Resources << /XObject << ${xo} >> >> /Contents ${x.cont} 0 R >>`);
+      const cs = enc.encode(p.imgs.map((m, i) => `q ${f(m.w)} 0 0 ${f(m.h)} ${f(m.x)} ${f(p.h - m.y - m.h)} cm /I${i} Do Q`).join("\n"));
+      obj(x.cont, `<< /Length ${cs.length} >>`, cs);
+      p.imgs.forEach((m, i) => obj(x.imgs[i], `<< /Type /XObject /Subtype /Image /Width ${m.pw} /Height ${m.ph} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${m.bytes.length} >>`, m.bytes));
+    }
+    const xref = len;
+    push(`xref\n0 ${n}\n0000000000 65535 f \n` + offs.slice(1, n).map(o => String(o).padStart(10, "0") + " 00000 n \n").join(""));
+    push(`trailer\n<< /Size ${n} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(chunks, {type: "application/pdf"});
+  }
+}
+async function drawHeader(canvas, l, key, wmm, s, pageIdx, pages){
+  const hmm = 18; await fontsReady;
+  canvas.width = Math.round(wmm*s); canvas.height = Math.round(hmm*s);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.save(); ctx.scale(canvas.width / wmm, canvas.height / hmm);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, wmm, hmm);
+  ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+  ctx.fillStyle = "#26303a"; ctx.font = `700 8px ${FONT}`;
+  ctx.fillText(l.naam.trim() || "Leerling", 0, 8, wmm);
+  ctx.font = `700 4.2px ${FONT}`; ctx.fillStyle = "#2e6a9e";
+  const cyc = cycLabel(key); ctx.fillText(cyc, 0, 14, wmm);
+  const cw = ctx.measureText(cyc).width;
+  ctx.font = `400 3.6px ${FONT}`; ctx.fillStyle = "#5d6874";
+  const sub = [l.klas, pages > 1 ? `blad ${pageIdx+1} van ${pages}` : ""].filter(Boolean).join("  ·  ");
+  if (sub) ctx.fillText("  ·  " + sub, cw, 14, wmm - cw);
+  ctx.fillStyle = css("--sky"); ctx.fillRect(0, hmm - 1.4, wmm, .8);
+  ctx.restore();
+}
+const OPMAAK = {
+  "6": {PW:297, PH:210, M:10, cols:2, rows:3, gx:8, gy:4},
+  "4": {PW:210, PH:297, M:10, cols:1, rows:4, gx:0, gy:4},
+  "3": {PW:210, PH:297, M:12, cols:1, rows:3, gx:0, gy:8},
+  "1": {PW:297, PH:210, M:12, cols:1, rows:1, gx:0, gy:0}
+};
+async function addPupil(pdf, l, layout, key){
+  const o = OPMAAK[layout] || OPMAAK["6"], list = kaartLijst(l, key);
+  const top = o.M + 21, perPage = o.cols * o.rows;
+  let ch = (o.PH - top - o.M - (o.rows - 1) * o.gy) / o.rows, cw = ch * CW / CH;
+  const maxW = (o.PW - 2*o.M - (o.cols - 1) * o.gx) / o.cols;
+  if (cw > maxW){ cw = maxW; ch = cw * CH / CW; }
+  const left = (o.PW - (o.cols * cw + (o.cols - 1) * o.gx)) / 2;
+  const s = Math.min(14, Math.max(6, 300 * cw / (25.4 * CW)));        // ± 300 dpi
+  const pages = Math.max(1, Math.ceil(list.length / perPage));
+  const canvas = document.createElement("canvas");
+  for (let pg = 0; pg < pages; pg++){
+    pdf.addPage(o.PW, o.PH);
+    await drawHeader(canvas, l, key, o.PW - 2*o.M, 11, pg, pages);
+    pdf.image(canvas, o.M, o.M, o.PW - 2*o.M, 18);
+    const items = list.slice(pg*perPage, pg*perPage + perPage);
+    for (let i = 0; i < items.length; i++){
+      const r = Math.floor(i / o.cols), k = i % o.cols;
+      await drawCard(canvas, items[i].nr, items[i].talent, s);
+      pdf.image(canvas, left + k * (cw + o.gx), top + r * (ch + o.gy), cw, ch);
+    }
+  }
+}
+async function makePdf(pupils, key = ck()){
+  const layout = db.instellingen.layout || "6";
+  const leeg = pupils.filter(l => !kaartLijst(l, key).length);
+  pupils = pupils.filter(l => kaartLijst(l, key).length);
+  if (!pupils.length){ toast(`Geen doelen in ${cycLabel(key)} om af te drukken.`); return; }
+  $("#busy").hidden = false;
+  try {
+    const pdf = new PdfDoc();
+    for (const l of pupils) await addPupil(pdf, l, layout, key);
+    const naam = pupils.length === 1 ? (pupils[0].naam.trim() || "leerling") : `${pupils.length} leerlingen`;
+    const a = document.createElement("a"); a.href = URL.createObjectURL(pdf.blob());
+    a.download = `Doelkaartjes - ${naam} - ${cycLabel(key)}.pdf`.replace(/[\\/:*?"<>|]+/g, "");
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    if (leeg.length) toast(`Overgeslagen (geen doelen in ${cycLabel(key)}): ${leeg.map(l => l.naam || "naamloos").join(", ")}`);
+  } catch(err){ console.error(err); toast("Er ging iets mis bij het maken van de PDF."); }
+  finally { $("#busy").hidden = true; }
+}
+$("#pdfBtn").addEventListener("click", () => { addDoelen(); makePdf([cur()]); });
+$("#multiBtn").addEventListener("click", () => makePdf(db.leerlingen.filter(l => checked.has(l.id))
+  .sort((a,b) => (a.klas||"").localeCompare(b.klas||"") || a.naam.localeCompare(b.naam))));
+
+/* ---------- back-up ---------- */
+$("#exportBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify({type:"doelkaartjes-backup", gemaakt:new Date().toISOString(), ...db}, null, 1)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `doelkaartjes-backup-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+});
+$("#importBtn").addEventListener("click", () => $("#importFile").click());
+$("#importFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!Array.isArray(data.leerlingen)) throw new Error("geen leerlingen");
+    const oudeKey = data.instellingen && data.instellingen.cyclus ? cycKey(data.instellingen.cyclus) : ck();
+    let nieuw = 0, bij = 0;
+    for (const raw of data.leerlingen){
+      const l = migreer({id:raw.id || uid(), naam:String(raw.naam||""), klas:String(raw.klas||""), cycli:raw.cycli || {},
+                         doelen:raw.doelen, talent:raw.talent, bijgewerkt:raw.bijgewerkt || new Date().toISOString()}, oudeKey);
+      for (const c of Object.values(l.cycli)){ c.doelen = (c.doelen||[]).map(Number).filter(n => byNr[n]); c.talent = byNr[+c.talent] ? +c.talent : null; }
+      const i = db.leerlingen.findIndex(x => x.id === l.id || (x.naam.trim().toLowerCase() === l.naam.trim().toLowerCase() && (x.klas||"") === l.klas));
+      if (i < 0){ db.leerlingen.push(l); nieuw++; continue; }
+      const doel = db.leerlingen[i];                        // per cyclus: de recentste versie wint
+      for (const [k, c] of Object.entries(l.cycli))
+        if (!doel.cycli[k] || (c.bijgewerkt || "") > (doel.cycli[k].bijgewerkt || "")) doel.cycli[k] = c;
+      if ((l.bijgewerkt || "") > (doel.bijgewerkt || "")){ doel.naam = l.naam; doel.klas = l.klas; doel.bijgewerkt = l.bijgewerkt; }
+      bij++;
+    }
+    save(); renderList(); if (curId) select(curId);
+    toast(`Back-up geladen: ${nieuw} nieuw, ${bij} samengevoegd.`);
+  } catch(err){ toast("Dit bestand is geen geldige back-up."); }
+  e.target.value = "";
+});
+
+renderList();
+if (db.leerlingen.length) select([...db.leerlingen].sort((a,b) => (b.bijgewerkt||"").localeCompare(a.bijgewerkt||""))[0].id);
+</script>
+</body>
+</html>
