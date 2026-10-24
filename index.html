@@ -41,7 +41,7 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
 .poort{border:0;padding:0;background:#0d0b09;color:#f3e9d2;border-radius:14px;width:min(520px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .poort::backdrop{background:rgba(0,0,0,.75)}
 .poort img{display:block;width:100%;height:auto;border-radius:14px 14px 0 0}
-.poort .tekst{padding:14px 20px 22px;text-align:center}
+.poort .tekst{padding:16px 20px 20px;text-align:center}
 .poort .roep{font:900 clamp(1.5rem,6vw,2.2rem)/1.1 Impact,"Arial Black",var(--f);letter-spacing:.03em;margin:0 0 14px;text-transform:uppercase}
 .poort form{display:flex;gap:8px;justify-content:center}
 .poort input{font:inherit;font-size:1.3rem;width:9ch;text-align:center;letter-spacing:.3em;padding:8px 10px;border-radius:8px;border:2px solid #8a7a5c;background:#1d1914;color:#f3e9d2}
@@ -72,9 +72,8 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
   <footer>168 doelen, 168 met prent · bijgewerkt op 24/10/2026</footer>
 </main>
 <dialog class="poort" id="poort" aria-label="Geheime toegang">
-  <img id="poortbeeld" src="assets/gandalf.jpg" alt="Gandalf houdt zijn staf omhoog" width="498" height="236">
+  <img id="poortbeeld" src="assets/gandalf.gif" alt="Gandalf roept: You shall not pass!" width="498" height="206">
   <div class="tekst" id="poorttekst">
-    <p class="roep">You shall not pass!</p>
     <form id="poortform" autocomplete="off">
       <input id="poortcode" type="password" inputmode="numeric" aria-label="Wachtwoord" required>
       <button type="submit">Ga</button>
