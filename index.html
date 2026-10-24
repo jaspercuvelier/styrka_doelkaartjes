@@ -36,6 +36,20 @@ h1{font-size:clamp(1.7rem,4vw,2.3rem);line-height:1.15;margin:0 0 .4rem;text-wra
 .door .go{margin-top:6px;font-weight:700;color:var(--accent)}
 .who{font-size:.78rem;letter-spacing:.08em;font-weight:700;text-transform:uppercase;color:var(--muted)}
 footer{color:var(--muted);font-size:.85rem;margin-top:36px}
+/* geheime toegang tot het nakijken: 5x op een logo klikken */
+.brand img{cursor:default;-webkit-tap-highlight-color:transparent;user-select:none}
+.poort{border:0;padding:0;background:#0d0b09;color:#f3e9d2;border-radius:14px;width:min(520px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.poort::backdrop{background:rgba(0,0,0,.75)}
+.poort img{display:block;width:100%;height:auto;border-radius:14px 14px 0 0}
+.poort .tekst{padding:14px 20px 22px;text-align:center}
+.poort .roep{font:900 clamp(1.5rem,6vw,2.2rem)/1.1 Impact,"Arial Black",var(--f);letter-spacing:.03em;margin:0 0 14px;text-transform:uppercase}
+.poort form{display:flex;gap:8px;justify-content:center}
+.poort input{font:inherit;font-size:1.3rem;width:9ch;text-align:center;letter-spacing:.3em;padding:8px 10px;border-radius:8px;border:2px solid #8a7a5c;background:#1d1914;color:#f3e9d2}
+.poort input:focus{outline:3px solid #f0c060;outline-offset:2px}
+.poort button{font:inherit;font-weight:700;padding:8px 16px;border-radius:8px;border:0;background:#f0c060;color:#1d1914;cursor:pointer}
+.poort.fout{animation:schud .4s}
+@keyframes schud{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+@media (prefers-reduced-motion:reduce){.poort.fout{animation:none}}
 </style>
 </head>
 <body>
@@ -54,14 +68,46 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
       <p>Kies per leerling de doelen en het talent, en maak er een PDF van om af te drukken. De tool onthoudt je leerlingen in deze browser.</p>
       <span class="go">Naar de kaartjes →</span>
     </a>
-    <a class="door" href="nakijken/" style="--c:var(--vrij)">
-      <span class="who">Voor het team</span>
-      <h2>Prenten nakijken</h2>
-      <p>Bekijk elke prent zoals een leerling ze ziet. Keur ze goed, of zeg wat er anders moet.</p>
-      <span class="go">Naar het nakijken →</span>
-    </a>
   </div>
-  <footer>168 doelen, 168 met prent · bijgewerkt op 17/10/2026</footer>
+  <footer>168 doelen, 168 met prent · bijgewerkt op 24/10/2026</footer>
 </main>
+<dialog class="poort" id="poort" aria-label="Geheime toegang">
+  <img id="poortbeeld" src="assets/gandalf.jpg" alt="Gandalf houdt zijn staf omhoog" width="498" height="236">
+  <div class="tekst" id="poorttekst">
+    <p class="roep">You shall not pass!</p>
+    <form id="poortform" autocomplete="off">
+      <input id="poortcode" type="password" inputmode="numeric" aria-label="Wachtwoord" required>
+      <button type="submit">Ga</button>
+    </form>
+  </div>
+</dialog>
+<script>
+// 5x snel op een logo klikken opent de poort; met de juiste code ga je door naar het nakijken
+(() => {
+  const poort = document.getElementById("poort"), code = document.getElementById("poortcode");
+  let klikken = 0, timer;
+  document.querySelectorAll(".brand img").forEach(img => img.addEventListener("click", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => klikken = 0, 1500);
+    if (++klikken < 5) return;
+    klikken = 0;
+    code.value = "";
+    poort.showModal();
+  }));
+  poort.addEventListener("click", e => { if (e.target === poort) poort.close(); });
+  document.getElementById("poortform").addEventListener("submit", e => {
+    e.preventDefault();
+    if (code.value.trim() !== "1584") {
+      poort.classList.remove("fout"); void poort.offsetWidth; poort.classList.add("fout");
+      code.value = ""; code.focus();
+      return;
+    }
+    const beeld = document.getElementById("poortbeeld");
+    beeld.src = "assets/frodo-ring.gif"; beeld.alt = "De ring valt op Frodo's vinger"; beeld.width = 245; beeld.height = 200;
+    document.getElementById("poorttekst").innerHTML = '<p class="roep">Welkom, vriend</p>';
+    setTimeout(() => location.href = "nakijken/", 3200);
+  });
+})();
+</script>
 </body>
 </html>
