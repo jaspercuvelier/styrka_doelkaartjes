@@ -50,6 +50,9 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
 .poort.fout{animation:schud .4s}
 @keyframes schud{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
 @media (prefers-reduced-motion:reduce){.poort.fout{animation:none}}
+.poort .keuze{display:grid;gap:10px}
+.poort .keuze a{display:block;padding:12px 16px;border-radius:10px;background:#f0c060;color:#1d1914;font-weight:700;text-decoration:none;font-size:1.1rem}
+.poort .keuze a:focus-visible{outline:3px solid #f3e9d2;outline-offset:3px}
 </style>
 </head>
 <body>
@@ -68,12 +71,6 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
       <p>Kies per leerling de doelen en het talent, en maak er een PDF van om af te drukken. De tool onthoudt je leerlingen in deze browser.</p>
       <span class="go">Naar de kaartjes →</span>
     </a>
-    <a class="door" href="rapport/" style="--c:var(--talent)">
-      <span class="who">Voor leerkrachten</span>
-      <h2>Rapport maken</h2>
-      <p>Voeg de doelenfiche, het handelingsplan en het eindrapport uit Smartschool samen tot één mooi rapport in PDF.</p>
-      <span class="go">Naar het rapport →</span>
-    </a>
   </div>
   <footer>168 doelen, 168 met prent · bijgewerkt op 15/11/2026</footer>
 </main>
@@ -87,7 +84,7 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
   </div>
 </dialog>
 <script>
-// 5x snel op een logo klikken opent de poort; met de juiste code ga je door naar het nakijken
+// 5x snel op een logo klikken opent de poort; met de juiste code kies je: nakijken of rapport
 (() => {
   const poort = document.getElementById("poort"), code = document.getElementById("poortcode");
   let klikken = 0, timer;
@@ -109,8 +106,9 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
     }
     const beeld = document.getElementById("poortbeeld");
     beeld.src = "assets/frodo-ring.gif"; beeld.alt = "De ring valt op Frodo's vinger"; beeld.width = 245; beeld.height = 200;
-    document.getElementById("poorttekst").innerHTML = '<p class="roep">Welkom, vriend</p>';
-    setTimeout(() => location.href = "nakijken/", 3200);
+    document.getElementById("poorttekst").innerHTML = '<p class="roep">Welkom, vriend</p>' +
+      '<nav class="keuze" aria-label="Kies een tool"><a href="nakijken/">Prenten nakijken →</a><a href="rapport/">Rapport maken →</a></nav>';
+    document.querySelector(".poort .keuze a").focus();
   });
 })();
 </script>
