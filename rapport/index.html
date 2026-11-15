@@ -62,6 +62,15 @@ select.inp{width:auto;min-width:180px}
 .up.done .st{color:var(--ok);font-weight:700}
 .up.err{border-style:solid;border-color:var(--danger);background:#fdf3f2}
 .up.err .st{color:var(--danger);font-weight:700}
+.drop{position:relative;display:grid;gap:4px;justify-items:center;text-align:center;border:2px dashed var(--accent);border-radius:12px;padding:22px 16px;margin-bottom:12px;background:color-mix(in srgb,var(--sky) 8%,#fff);cursor:pointer}
+.drop:hover,.drop.drag{background:color-mix(in srgb,var(--sky) 22%,#fff)}
+.drop:focus-within{outline:3px solid var(--accent);outline-offset:3px}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.drop b{font-size:1.1rem}
+.drop .what{font-size:.88rem;color:var(--muted)}
+.drop .st{font-size:.88rem;font-weight:700;color:var(--danger)}
+.drop .st:empty{display:none}
+.apart{font-size:.85rem;color:var(--muted);margin:0 0 6px}
 
 /* controle */
 .check{display:grid;gap:8px}
@@ -148,6 +157,13 @@ textarea.inp{min-height:110px;resize:vertical;line-height:1.45}
 
     <section class="panel" aria-labelledby="h2">
       <h2 id="h2"><span class="n" id="n2">2</span> Bestanden</h2>
+      <label class="drop" id="dropAlles">
+        <input type="file" multiple accept=".pdf,.docx,.doc,application/pdf" aria-label="De drie bestanden samen kiezen">
+        <b>Sleep de 3 bestanden hierheen</b>
+        <span class="what">of klik om ze samen te kiezen. De app herkent zelf welk bestand wat is.</span>
+        <span class="st" id="dropSt" role="status"></span>
+      </label>
+      <p class="apart">Of kies ze apart:</p>
       <div class="uploads">
         <label class="up" id="upA">
           <input type="file" accept=".pdf,application/pdf" data-soort="A" aria-label="Doelenfiche leerling (PDF)">
@@ -214,7 +230,7 @@ textarea.inp{min-height:110px;resize:vertical;line-height:1.45}
 
 <script src="lib/jszip.min.js"></script>
 <script src="lib/jspdf.umd.min.js"></script>
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="data.js?v=2"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

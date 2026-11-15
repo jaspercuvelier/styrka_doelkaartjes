@@ -145,6 +145,40 @@ document.querySelectorAll(".up input").forEach(inp => {
   inp.addEventListener("dragleave", () => up.classList.remove("drag"));
   inp.addEventListener("drop", () => up.classList.remove("drag"));
 });
+// alle bestanden tegelijk: de app zoekt zelf uit welk bestand wat is
+const dropAlles = $("#dropAlles"), dropInp = dropAlles.querySelector("input");
+dropInp.addEventListener("change", () => { const fs = [...dropInp.files]; dropInp.value = ""; if (fs.length) laadAlles(fs); });
+dropInp.addEventListener("dragenter", () => dropAlles.classList.add("drag"));
+dropInp.addEventListener("dragleave", () => dropAlles.classList.remove("drag"));
+dropInp.addEventListener("drop", () => dropAlles.classList.remove("drag"));
+async function soortVan(file){
+  const buf = await file.arrayBuffer(), u8 = new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
+  if (u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46) return "A";
+  if (u8[0] !== 0x50 || u8[1] !== 0x4b) return null;
+  let doc;
+  try { ({doc} = await leesDocx(buf)); } catch { return null; }
+  const tekst = blokken(doc).flat().map(x => x.t).join("\n");
+  if (/individueel handelingsplan/i.test(tekst) || /^doelen, aanpak en planning$/im.test(tekst)) return "B";
+  if (/^(de jongere|de leerling)\b/im.test(tekst)) return "C";
+  return null;
+}
+async function laadAlles(files){
+  const melding = $("#dropSt"), fouten = [], gekozen = {};
+  melding.textContent = "";
+  for (const f of files){
+    let s = null;
+    try { s = await soortVan(f); } catch {}
+    if (!s){
+      fouten.push(/\.doc$/i.test(f.name) ? `${f.name}: oud Word-bestand (.doc), bewaar het eerst als .docx` : `${f.name}: niet herkend`);
+      continue;
+    }
+    if (gekozen[s]) fouten.push(`${f.name} en ${gekozen[s].name} lijken hetzelfde soort bestand; enkel ${f.name} wordt gebruikt`);
+    gekozen[s] = f;
+  }
+  // volgorde A, B, C: het handelingsplan levert de naam, het eindrapport de klas
+  for (const s of ["A", "B", "C"]) if (gekozen[s]) await laad(s, gekozen[s]);
+  melding.textContent = fouten.join(" · ");
+}
 function zetStatus(soort, ok, tekst){
   const up = $("#up" + soort);
   up.classList.toggle("done", ok === true); up.classList.toggle("err", ok === false);
