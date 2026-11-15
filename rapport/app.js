@@ -183,6 +183,26 @@ function zetStatus(soort, ok, tekst){
   const up = $("#up" + soort);
   up.classList.toggle("done", ok === true); up.classList.toggle("err", ok === false);
   up.querySelector(".st").textContent = tekst;
+  if (ok === true) confetti(up);
+}
+// klein feestje als een bestand herkend is (niet bij "minder beweging")
+function confetti(el){
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || !Element.prototype.animate) return;
+  const r = el.getBoundingClientRect(), x0 = r.left + r.width / 2, y0 = r.top + r.height / 2;
+  const kleuren = ["#f4c430", "#7dcb86", "#86afcf", "#f59b57", "#a98bd6"];
+  for (let i = 0; i < 26; i++){
+    const c = document.createElement("span"), w = 5 + Math.random() * 4;
+    c.style.cssText = `position:fixed;left:${x0}px;top:${y0}px;width:${w}px;height:${w * (Math.random() < .5 ? 1 : 1.8)}px;` +
+      `background:${kleuren[i % kleuren.length]};border-radius:${Math.random() < .4 ? "50%" : "2px"};pointer-events:none;z-index:50`;
+    document.body.appendChild(c);
+    const hoek = Math.random() * Math.PI * 2, afst = 40 + Math.random() * 70;
+    const dx = Math.cos(hoek) * afst, dy = Math.sin(hoek) * afst * .7 - 30, draai = (Math.random() - .5) * 720;
+    c.animate([
+      {transform: "translate(-50%,-50%) rotate(0deg)", opacity: 1},
+      {transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(${draai / 2}deg)`, opacity: 1, offset: .55},
+      {transform: `translate(calc(-50% + ${dx * 1.15}px), calc(-50% + ${dy + 55}px)) rotate(${draai}deg)`, opacity: 0}
+    ], {duration: 900 + Math.random() * 400, easing: "cubic-bezier(.2,.7,.4,1)"}).onfinish = () => c.remove();
+  }
 }
 async function laad(soort, file){
   zetStatus(soort, null, "Bezig met lezen…");
