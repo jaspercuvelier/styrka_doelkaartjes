@@ -19,19 +19,19 @@ const RAPPORTEN = {
   jan: {label: "Rapport januari", titel: "RAPPORT JANUARI", cyclus: 1},
   jun: {label: "Rapport juni", titel: "RAPPORT JUNI", cyclus: 2}
 };
-// kleuren van de evaluatie-bolletjes (zoals in het eindrapport van Smartschool)
+// kleuren van de evaluatie-bolletjes (uit "parameters evaluatie": de boeien op de koers)
 const EVAL = {
-  groen:  {kleur: "#4caf3a", naam: "groen"},
-  blauw:  {kleur: "#2589e8", naam: "blauw"},
-  geel:   {kleur: "#f5c400", naam: "geel"},
-  oranje: {kleur: "#f08a24", naam: "oranje"}
+  grijs: {kleur: "#d9d9d9", naam: "grijs"},
+  geel:  {kleur: "#ffcc00", naam: "geel"},
+  blauw: {kleur: "#004aad", naam: "blauw"},
+  groen: {kleur: "#0a9250", naam: "groen"}
 };
-// uitleg op het voorblad: nog fictief, wordt later uitgeschreven
+// uitleg evaluatieparameters op pagina 2
 const PARAMETERS = [
-  {naam: "Z", eval: "groen",  uitleg: "Uitleg volgt."},
-  {naam: "Y", eval: "blauw",  uitleg: "Uitleg volgt."},
-  {naam: "X", eval: "geel",   uitleg: "Uitleg volgt."},
-  {naam: "W", eval: "oranje", uitleg: "Uitleg volgt."}
+  {naam: "Startpunt", eval: "grijs"},
+  {naam: "In ontwikkeling", eval: "geel"},
+  {naam: "Goede voortgang", eval: "blauw"},
+  {naam: "Doel voldoende beheerst", eval: "groen"}
 ];
 const VOETNOOT_STYRKA = [
   "Sint-Juliaanstraat 7 – 9000 Gent  ·  09 222 15 84",
@@ -373,10 +373,10 @@ function leesHandelingsplan({doc}){
 }
 
 /* ---------- C: eindrapport ---------- */
-const STATUS_RE = /^(doel voldoende beheerst|doel (niet )?bereikt|goede voortgang|in ontwikkeling|onvoldoende( voortgang)?|beperkte voortgang|geen voortgang|nog niet bereikt|niet bereikt|bereikt|beheerst)\b/i;
+const STATUS_RE = /^(startpunt|doel voldoende beheerst|doel (niet )?bereikt|goede voortgang|in ontwikkeling|onvoldoende( voortgang)?|beperkte voortgang|geen voortgang|nog niet bereikt|niet bereikt|bereikt|beheerst)\b/i;
 function statusKleur(label){
   const l = label.toLowerCase();
-  if (/niet|onvoldoende|geen|beperkt/.test(l)) return "oranje";
+  if (/startpunt|niet|onvoldoende|geen|beperkt/.test(l)) return "grijs";
   if (/beheerst|bereikt/.test(l)) return "groen";
   if (/goede voortgang/.test(l)) return "blauw";
   if (/in ontwikkeling/.test(l)) return "geel";
@@ -394,10 +394,10 @@ async function kleurUitAfbeelding(zip, p){
     const ctx = cv.getContext("2d"); ctx.drawImage(bmp, 0, 0);
     const d = ctx.getImageData(Math.floor(bmp.width / 2), Math.floor(bmp.height / 2), 1, 1).data;
     let best = null, bd = Infinity;
-    for (const [k, rgb] of Object.entries({groen: [81, 195, 39], blauw: [35, 140, 241], geel: [246, 195, 0], oranje: [240, 130, 20]})){
+    for (const [k, rgb] of Object.entries({groen: [81, 195, 39], blauw: [35, 140, 241], geel: [246, 195, 0], grijs: [200, 200, 200], grijs2: [240, 130, 20]})){
       const dd = rgb.reduce((a, v, i) => a + (v - d[i]) ** 2, 0); if (dd < bd){ bd = dd; best = k; }
     }
-    return best;
+    return best === "grijs2" ? "grijs" : best;
   } catch { return null; }
 }
 async function leesEindrapport({zip, doc}){
@@ -415,7 +415,7 @@ async function leesEindrapport({zip, doc}){
       const kort = t.length < 70;
       if (kort && (STATUS_RE.test(t) || /,\s*(ASV|BGV)\s*$/i.test(t))){
         const m = t.match(/^(.*?)(?:,\s*(ASV|BGV))?\s*$/i);
-        cur.status = {label: m[1].trim(), vak: (m[2] || "").toUpperCase(), kleur: statusKleur(m[1]) || await kleurUitAfbeelding(zip, p) || "oranje"};
+        cur.status = {label: m[1].trim(), vak: (m[2] || "").toUpperCase(), kleur: statusKleur(m[1]) || await kleurUitAfbeelding(zip, p) || "grijs"};
         cur.naStatus = true; continue;
       }
       if (/\(\d\)\s*$/.test(t) || !cur.naStatus){ cur.doelstellingen.push(t); cur.naStatus = false; cur.commentaar = []; }
@@ -580,18 +580,6 @@ function voorblad(doc, i, voorbeeld){
   doc.text(i.naam || (voorbeeld ? "Naam leerling" : ""), PW / 2, 134, {align: "center"});
   font(doc, "normal", 14, MUTED);
   doc.text([i.klas || (voorbeeld ? "Klas" : ""), `schooljaar ${i.jaar}`].filter(Boolean).join("  ·  "), PW / 2, 144, {align: "center"});
-  // evaluatieparameters
-  const bx = M + 8, by = 170, bwid = PW - 2 * (M + 8), rij = 10.5, bh = 20 + PARAMETERS.length * rij;
-  doc.setDrawColor(SKY); doc.setLineWidth(.6); doc.setFillColor("#f7fafc");
-  doc.roundedRect(bx, by, bwid, bh, 4, 4, "FD");
-  font(doc, "bold", 13, INK);
-  doc.text("Uitleg evaluatieparameters", bx + 9, by + 11);
-  PARAMETERS.forEach((p, k) => {
-    const y = by + 20 + k * rij;
-    doc.setFillColor(EVAL[p.eval].kleur); doc.circle(bx + 12, y, 2.6, "F");
-    font(doc, "bold", 11, INK); doc.text(p.naam, bx + 19, y + 1.4);
-    font(doc, "normal", 10.5, MUTED); doc.text(p.uitleg, bx + 28, y + 1.4, {maxWidth: bwid - 36});
-  });
   // voetnoot Styrka
   const fy = PH - 27;
   doc.setDrawColor(SKY); doc.setLineWidth(.4); doc.line(M, fy, PW - M, fy);
@@ -599,6 +587,30 @@ function voorblad(doc, i, voorbeeld){
   logo(doc, "styrkaOC", PW - M, fy + 5, 9, true);
   font(doc, "normal", 8, INK);
   VOETNOOT_STYRKA.forEach((r, k) => doc.text(r, PW / 2 + 2, fy + 7 + k * 4, {align: "center"}));
+}
+// pagina 2: uitleg evaluatieparameters met de koers-tekening
+function parameterPagina(doc){
+  koptekst(doc);
+  const bx = M, bw = PW - 2 * M, sw = bw - 18, sh = sw / VERHOUDING.koersStrook;
+  const bh = 22 + sh + 12 + 12 + (PARAMETERS.length - 1) * 11 + 12;
+  const by = (28 + (PH - 17)) / 2 - bh / 2;          // verticaal gecentreerd tussen kop- en voetlijn
+  doc.setDrawColor(SKY); doc.setLineWidth(.6); doc.setFillColor("#ffffff");
+  doc.roundedRect(bx, by, bw, bh, 4, 4, "FD");
+  font(doc, "bold", 14, INK); doc.text("Uitleg evaluatieparameters", bx + 9, by + 13);
+  logo(doc, "koersStrook", bx + 9, by + 22, sh);
+  // "SAMEN ZETTEN WE DE JUISTE KOERS UIT"
+  let ty = by + 22 + sh + 12;
+  font(doc, "bold", 12.5, "#ff751f");
+  const w1 = doc.getTextWidth("SAMEN "); font(doc, "normal", 12.5, SKY);
+  const w2 = doc.getTextWidth("ZETTEN WE DE JUISTE KOERS UIT"), x0 = PW / 2 - (w1 + w2) / 2;
+  font(doc, "bold", 12.5, "#ff751f"); doc.text("SAMEN", x0, ty);
+  font(doc, "normal", 12.5, "#6f9fc4"); doc.text("ZETTEN WE DE JUISTE KOERS UIT", x0 + w1, ty);
+  ty += 12;
+  PARAMETERS.forEach((p, k) => {
+    const y = ty + k * 11;
+    doc.setFillColor(EVAL[p.eval].kleur); doc.circle(x0 + 3, y - 1.4, 3, "F");
+    font(doc, "normal", 12, INK); doc.text(p.naam, x0 + 16, y);
+  });
 }
 function koptekst(doc){
   logo(doc, "koers", M, 11, 11);
@@ -682,7 +694,7 @@ function doelBlok(c, {k, d, ihp, er}, eerste){
   const IN = 16, tw = PW - 2 * M - IN, x = M + IN;
   const tekstH = (t, size) => { font(doc, "normal", size); return doc.splitTextToSize(String(t), tw).length * lh(size); };
   const kopH = lh(10.5) + 1.2;
-  const blokH = rh + 7 + 3 * kopH + 3 * 3.5 + 3
+  const blokH = rh + 7 + 3 * kopH + 3 * 3.5 + 3 + 5.5
     + tekstH((ihp && ihp.begin) || "-", 9.5) + tekstH((ihp && ihp.aanpak) || "-", 9.5)
     + (er && er.status ? lh(9.5) + .8 : 0) + tekstH((er && er.commentaar.join("\n")) || "-", 9.5);
   const scheiding = eerste || c.y <= BOVEN ? 0 : 7;
@@ -710,16 +722,28 @@ function doelBlok(c, {k, d, ihp, er}, eerste){
   }
   c.y = y0 + rh + 7;
 
-  // onder de kaders: bolletje links, tekst ingesprongen
+  // onder de kaders: icoontje links van elke titel, tekst ingesprongen
   const kleur = er && er.status ? EVAL[er.status.kleur].kleur : null;
-  if (kleur){ doc.setFillColor(kleur); doc.circle(M + 6, c.y + 3.2, 3.4, "F"); }
-  else { doc.setDrawColor("#b9c0c7"); doc.setLineWidth(.5); doc.setLineDashPattern([.8, .8], 0); doc.circle(M + 6, c.y + 3.2, 3.2, "S"); doc.setLineDashPattern([], 0); }
+  const titel = (tekst, icoon, bol) => {
+    ruimte(c, lh(10.5) + 14);
+    const y = c.y, ih = 7.5, iw = ih * VERHOUDING[icoon];
+    logo(doc, icoon, M + 7 - iw / 2, y + asc(10.5) / 2 - ih / 2 + .3, ih);
+    kop(c, tekst, {x});
+    if (bol){
+      font(doc, "bold", 10.5); const bx = x + doc.getTextWidth(tekst) + 5.5, byy = y + asc(10.5) / 2 + .3;
+      if (kleur){ doc.setFillColor(kleur); doc.circle(bx, byy, 2.8, "F"); }
+      else { doc.setDrawColor("#b9c0c7"); doc.setLineWidth(.5); doc.setLineDashPattern([.8, .8], 0); doc.circle(bx, byy, 2.6, "S"); doc.setLineDashPattern([], 0); }
+    }
+  };
   const leeg = t => alinea(c, t, {x, w: tw, stijl: "italic", kleur: "#8a939c", na: 3.5});
-  kop(c, "Beginsituatie", {x});
+  c.y += 1.5;
+  titel("Beginsituatie", "icBegin");
   if (ihp && ihp.begin) alinea(c, ihp.begin, {x, w: tw, na: 3.5}); else leeg("Geen beginsituatie in het handelingsplan.");
-  kop(c, "Aanpak", {x});
+  c.y += 2;
+  titel("Aanpak", "icAanpak");
   if (ihp && ihp.aanpak) alinea(c, ihp.aanpak, {x, w: tw, na: 3.5}); else leeg("Geen aanpak in het handelingsplan.");
-  kop(c, "Evaluatie", {x});
+  c.y += 2;
+  titel("Evaluatie", "icEval", true);
   if (er && er.status){
     alinea(c, er.status.label + (er.status.vak ? ` (${er.status.vak})` : ""), {x, w: tw, stijl: "bold", kleur: INK, na: .8});
   }
@@ -729,7 +753,7 @@ function doelBlok(c, {k, d, ihp, er}, eerste){
   c.y += 3;
 }
 
-function slot(c, voorbeeld){
+function slot(c, voorbeeld, i){
   const {doc} = c;
   nieuwePagina(c);
   const asv = $("#asvAan").checked, bgv = $("#bgvAan").checked;
@@ -744,16 +768,16 @@ function slot(c, voorbeeld){
   plaats($("#besluit").value, "Het besluit is nog niet ingevuld (verplicht).");
   c.y += 4;
   // ondertekenen: vier vakken
-  const zones = ["Directie", "Klastitularissen", "Ouder(s) / Voogd / Opvoeders", "Leerling zelf"];
+  // de leerling tekent eerst: het is zijn of haar rapport
+  const zones = [i.naam || "Leerling", "Directie", "Klastitularissen", "Ouder(s) / Voogd / Opvoeders"];
   const gap = 8, zw = (PW - 2 * M - gap) / 2, zh = 34;
   ruimte(c, 14 + 2 * zh + gap);
   kop(c, "Ondertekenen", {size: 13, nodig: 2 * zh + gap}); c.y += 3;
   zones.forEach((z, k) => {
     const x = M + (k % 2) * (zw + gap), y = c.y + Math.floor(k / 2) * (zh + gap);
     doc.setDrawColor(LINE); doc.setLineWidth(.4); doc.roundedRect(x, y, zw, zh, 3, 3, "S");
-    font(doc, "bold", 10.5, INK); doc.text(z, x + 5, y + 8);
+    font(doc, "bold", 10.5, INK); doc.text(doc.splitTextToSize(z, zw - 10)[0], x + 5, y + 8);
     doc.setDrawColor("#b9c0c7"); doc.setLineWidth(.3); doc.line(x + 5, y + zh - 9, x + zw - 5, y + zh - 9);
-    font(doc, "normal", 7.5, MUTED); doc.text("Datum en handtekening", x + 5, y + zh - 4.5);
   });
   c.y += 2 * zh + gap;
 }
@@ -763,13 +787,13 @@ async function maakPdf(voorbeeld){
   const i = info(), doc = nieuweDoc();
   doc.setProperties({title: `${i.rap.label} ${i.naam} ${i.jaar}`.trim(), subject: "Rapport", creator: "Styrka @waterkant - rapport-app"});
   voorblad(doc, i, voorbeeld);
-  doc.addPage();                                   // pagina 2 blijft leeg
+  doc.addPage(); parameterPagina(doc);             // pagina 2: uitleg evaluatieparameters
   const c = {doc, y: 0};
   nieuwePagina(c);
   lijst().forEach((g, n) => doelBlok(c, g, n === 0));
-  slot(c, voorbeeld);
+  slot(c, voorbeeld, i);
   const n = doc.getNumberOfPages();
-  for (let p = 3; p <= n; p++){ doc.setPage(p); voettekst(doc, i); }
+  for (let p = 2; p <= n; p++){ doc.setPage(p); voettekst(doc, i); }
   return doc;
 }
 
