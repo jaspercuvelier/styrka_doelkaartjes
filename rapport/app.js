@@ -696,7 +696,7 @@ function doelBlok(c, {k, d, ihp, er}, eerste){
   const kopH = lh(10.5) + 1.2;
   const blokH = rh + 7 + 3 * kopH + 3 * 3.5 + 3 + 5.5
     + tekstH((ihp && ihp.begin) || "-", 9.5) + tekstH((ihp && ihp.aanpak) || "-", 9.5)
-    + (er && er.status ? lh(9.5) + .8 : 0) + tekstH((er && er.commentaar.join("\n")) || "-", 9.5);
+    + (er && er.status ? 9.2 : 0) + tekstH((er && er.commentaar.join("\n")) || "-", 9.5);
   const scheiding = eerste || c.y <= BOVEN ? 0 : 7;
   if (c.y + scheiding + blokH > ONDER && blokH <= ONDER - BOVEN) nieuwePagina(c);
   else ruimte(c, scheiding + rh + 30);
@@ -724,16 +724,11 @@ function doelBlok(c, {k, d, ihp, er}, eerste){
 
   // onder de kaders: icoontje links van elke titel, tekst ingesprongen
   const kleur = er && er.status ? EVAL[er.status.kleur].kleur : null;
-  const titel = (tekst, icoon, bol) => {
+  const titel = (tekst, icoon) => {
     ruimte(c, lh(10.5) + 14);
     const y = c.y, ih = 7.5, iw = ih * VERHOUDING[icoon];
     logo(doc, icoon, M + 7 - iw / 2, y + asc(10.5) / 2 - ih / 2 + .3, ih);
     kop(c, tekst, {x});
-    if (bol){
-      font(doc, "bold", 10.5); const bx = x + doc.getTextWidth(tekst) + 5.5, byy = y + asc(10.5) / 2 + .3;
-      if (kleur){ doc.setFillColor(kleur); doc.circle(bx, byy, 2.8, "F"); }
-      else { doc.setDrawColor("#b9c0c7"); doc.setLineWidth(.5); doc.setLineDashPattern([.8, .8], 0); doc.circle(bx, byy, 2.6, "S"); doc.setLineDashPattern([], 0); }
-    }
   };
   const leeg = t => alinea(c, t, {x, w: tw, stijl: "italic", kleur: "#8a939c", na: 3.5});
   c.y += 1.5;
@@ -743,9 +738,19 @@ function doelBlok(c, {k, d, ihp, er}, eerste){
   titel("Aanpak", "icAanpak");
   if (ihp && ihp.aanpak) alinea(c, ihp.aanpak, {x, w: tw, na: 3.5}); else leeg("Geen aanpak in het handelingsplan.");
   c.y += 2;
-  titel("Evaluatie", "icEval", true);
-  if (er && er.status){
-    alinea(c, er.status.label + (er.status.vak ? ` (${er.status.vak})` : ""), {x, w: tw, stijl: "bold", kleur: INK, na: .8});
+  titel("Evaluatie", "icEval");
+  // bolletje onder het icoontje, evaluatiezin als pil in dezelfde kleur
+  const PH_ = 6.2, pm = c.y + .8 + PH_ / 2;
+  if (kleur){
+    doc.setFillColor(kleur); doc.circle(M + 7, pm, 2.8, "F");
+    const tekstKleur = ["geel", "grijs"].includes(er.status.kleur) ? INK : "#ffffff";
+    font(doc, "bold", 9, tekstKleur);
+    const lbl = doc.splitTextToSize(er.status.label, tw - 7)[0], pw = doc.getTextWidth(lbl) + 7;
+    doc.setFillColor(kleur); doc.roundedRect(x, pm - PH_ / 2, pw, PH_, PH_ / 2, PH_ / 2, "F");
+    doc.text(lbl, x + 3.5, pm + asc(9) / 2 - .1);
+    c.y += .8 + PH_ + 2.2;
+  } else {
+    doc.setDrawColor("#b9c0c7"); doc.setLineWidth(.5); doc.setLineDashPattern([.8, .8], 0); doc.circle(M + 7, pm, 2.6, "S"); doc.setLineDashPattern([], 0);
   }
   if (er && er.commentaar.length) alinea(c, er.commentaar.join("\n"), {x, w: tw, na: 3.5});
   else if (!er || !er.status) leeg("Nog geen evaluatie in het eindrapport.");
@@ -769,7 +774,7 @@ function slot(c, voorbeeld, i){
   c.y += 4;
   // ondertekenen: vier vakken
   // de leerling tekent eerst: het is zijn of haar rapport
-  const zones = [i.naam || "Leerling", "Directie", "Klastitularissen", "Ouder(s) / Voogd / Opvoeders"];
+  const zones = [i.naam || "Leerling", "Coördinatieteam", "Klastitularissen", "Ouder(s) / Voogd / Opvoeders"];
   const gap = 8, zw = (PW - 2 * M - gap) / 2, zh = 34;
   ruimte(c, 14 + 2 * zh + gap);
   kop(c, "Ondertekenen", {size: 13, nodig: 2 * zh + gap}); c.y += 3;
