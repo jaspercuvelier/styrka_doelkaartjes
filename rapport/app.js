@@ -608,8 +608,12 @@ function parameterPagina(doc){
   ty += 12;
   PARAMETERS.forEach((p, k) => {
     const y = ty + k * 11;
-    doc.setFillColor(EVAL[p.eval].kleur); doc.circle(x0 + 3, y - 1.4, 3, "F");
-    font(doc, "normal", 12, INK); doc.text(p.naam, x0 + 16, y);
+    const kl = EVAL[p.eval].kleur, ph = 7.6, pm = y - 1.4;
+    doc.setFillColor(kl); doc.circle(x0 + 3, pm, 3, "F");
+    font(doc, "bold", 11, ["geel", "grijs"].includes(p.eval) ? INK : "#ffffff");
+    const pw = doc.getTextWidth(p.naam) + 9;
+    doc.setFillColor(kl); doc.roundedRect(x0 + 12, pm - ph / 2, pw, ph, ph / 2, ph / 2, "F");
+    doc.text(p.naam, x0 + 16.5, pm + asc(11) / 2 - .1);
   });
 }
 function koptekst(doc){
