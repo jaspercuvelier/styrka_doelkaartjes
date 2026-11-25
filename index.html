@@ -1,14 +1,31 @@
 <!doctype html>
+<!--
+  STARTPAGINA  (sjabloon; wordt site/index.html)
+
+  Wat: korte uitleg en een "deur" naar de kaartjes-tool (kaartjes/). Een verborgen poort
+  (5x snel op een logo klikken + code) toont links naar nakijken/ en rapport/.
+
+  Data: maak_site.py vervangt twee placeholders in deze pagina: __AANTAL__ (aantal
+  ontwikkelingsdoelen, in de inleiding) en __STAND__ (regel in de footer: aantal doelen, met
+  prent, datum). Laat ze exact staan (met de commentaartekens eromheen): maak_site.py stopt
+  als ze ontbreken.
+
+  localStorage: niets. Externe afhankelijkheden: geen. Lettertype zelf gehost in assets/fonts/
+  (deze pagina staat in de root van de site, dus zonder "../").
+  Lokaal testen: python3 maak_site.py, daarna in de map site "python3 -m http.server" en
+  http://localhost:8000/ openen.
+-->
 <html lang="nl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Doelkaartjes OV1-2</title>
 <link rel="icon" href="assets/doel-icoon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <style>
+/* Atkinson Hyperlegible, zelf gehost (geen Google Fonts: geen gegevens naar derden, AVG) */
+@font-face{font-family:"Atkinson Hyperlegible";src:url("assets/fonts/AH-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible";src:url("assets/fonts/AH-Bold.ttf") format("truetype");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible";src:url("assets/fonts/AH-Italic.ttf") format("truetype");font-weight:400;font-style:italic;font-display:swap}
 /* Layout: brand band, short lead, two large doors (one per tool) */
 :root{--bg:#f4f6f8;--surface:#fff;--ink:#26303a;--muted:#5d6874;--line:#d9dfe5;--sky:#86afcf;--koers:#f07b3b;--accent:#2e6a9e;
   --wonen:#f4c430;--werken:#7dcb86;--vrij:#86afcf;--over:#f59b57;--talent:#a98bd6;
@@ -72,7 +89,7 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
       <span class="go">Naar de kaartjes →</span>
     </a>
   </div>
-  <footer>168 doelen, 168 met prent · bijgewerkt op 16/11/2026</footer>
+  <footer>168 doelen, 168 met prent · bijgewerkt op 25/11/2026</footer>
 </main>
 <dialog class="poort" id="poort" aria-label="Geheime toegang">
   <img id="poortbeeld" src="assets/gandalf.gif" alt="Gandalf roept: You shall not pass!" width="498" height="206">
@@ -84,7 +101,10 @@ footer{color:var(--muted);font-size:.85rem;margin-top:36px}
   </div>
 </dialog>
 <script>
-// 5x snel op een logo klikken opent de poort; met de juiste code kies je: nakijken of rapport
+// 5x snel op een logo klikken opent de poort; met de juiste code kies je: nakijken of rapport.
+// LET OP: dit is GEEN beveiliging, enkel een speels drempeltje. De code staat leesbaar in deze
+// publieke HTML, en /nakijken/ en /rapport/ zijn gewoon rechtstreeks bereikbaar met hun URL.
+// Zet daar dus nooit iets wat echt afgeschermd moet zijn.
 (() => {
   const poort = document.getElementById("poort"), code = document.getElementById("poortcode");
   let klikken = 0, timer;

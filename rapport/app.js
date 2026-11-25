@@ -4,7 +4,33 @@
      A  doelenfiche leerling (PDF uit de doelkaartjes-tool): de kaartjes zelf
      B  individueel handelingsplan (Word uit Smartschool): ontwikkelingsdoel, doelstellingen, beginsituatie, aanpak
      C  eindrapport (Word uit Smartschool): evaluatie (gekleurd bolletje) en commentaar per doel
-   Alles gebeurt in de browser; er wordt niets verstuurd. */
+   Alles gebeurt in de browser; er wordt niets verstuurd.
+
+   Verloop (stappen in index.html):
+     1 opleidingsvorm, klas, leerling, schooljaar en rapport (januari = cyclus 1, juni = cyclus 2) kiezen
+     2 bestanden laden: soortVan() herkent A/B/C; leesDoelenfiche() haalt de kaartjes (JPEG's) uit de
+       PDF en herkent per kaartje kleur (domein/talent) en nummer; leesHandelingsplan() en
+       leesEindrapport() lezen de Word-bestanden (docx = zip, uitgepakt met JSZip)
+     3 controle: kaartjes koppelen aan handelingsplan en eindrapport, nummers zo nodig corrigeren
+     4 algemene bevindingen (ASV/BGV) en besluit, als concept bewaard in deze browser
+     5 PDF maken met jsPDF (live voorbeeld rechts, definitieve versie via "Download PDF")
+
+   Data: window.RAPPORT_DATA uit data.js, gemaakt door rapport/bouw.py (niet met de hand aanpassen):
+     {doelen: [{nr, domein, subdomein, aspect, ik_doel, officieel}],
+      logos: {koers, styrka, evara, styrkaOC, koersStrook, icBegin, icAanpak, icEval}  (data-URL's),
+      fonts: {regular, bold, italic}  (Atkinson Hyperlegible, base64-TTF; voor de pagina én de PDF)}
+
+   localStorage: per leerling/rapport een concept van stap 4, sleutel
+     "rapport-concept|<klas>|<leerling>|<schooljaar>|<jan|jun>"
+     -> {asvAan: bool, bgvAan: bool, asv: "...", bgv: "...", besluit: "..."}
+   Verder wordt niets bewaard; de geladen bestanden blijven enkel in het geheugen.
+
+   Externe afhankelijkheden (lokaal in lib/, geen CDN): JSZip (window.JSZip) en jsPDF (window.jspdf).
+
+   Lokaal testen: in de map rapport "python3 bouw.py" (maakt app/data.js), daarna
+   rapport/app/index.html openen in de browser (werkt ook via file://), of via de site
+   (python3 maak_site.py, in site "python3 -m http.server", http://localhost:8000/rapport/).
+   Na een wijziging aan app.js of data.js: het ?v=-nummer in index.html ophogen. */
 
 /* ================= instellingen (later te koppelen aan Smartschool) ================= */
 const KLASSEN = {
@@ -14,7 +40,12 @@ const KLASSEN = {
         "Arbeidstraining fase 2 – A2", "Prestatietraining fase 2 – P2", "Finaliteitstraining fase 2 – F2"]
 };
 const LEERLINGEN_TEST = ["A", "B", "C"];               // testfase: fictieve namen per klas
-const SCHOOLJAREN = ["2026-2027", "2027-2028", "2028-2029", "2029-2030", "2030-2031"];
+// schooljaren in de keuzelijst: van 2026-2027 tot 4 jaar na het huidige (nieuw schooljaar vanaf augustus)
+const SCHOOLJAREN = (() => {
+  const n = new Date(), y = n.getMonth() >= 7 ? n.getFullYear() : n.getFullYear() - 1, uit = [];
+  for (let j = 2026; j <= Math.max(y, 2026) + 4; j++) uit.push(`${j}-${j + 1}`);
+  return uit;
+})();
 const RAPPORTEN = {
   jan: {label: "Rapport januari", titel: "RAPPORT JANUARI", cyclus: 1},
   jun: {label: "Rapport juni", titel: "RAPPORT JUNI", cyclus: 2}
@@ -51,11 +82,14 @@ const PAL = {
 const D = window.RAPPORT_DATA;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+/** base64-tekst -> Uint8Array */
 const b64bytes = b => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+/** Helderheid (0-255) van een [r, g, b]-kleur. */
 const lum = ([r, g, b]) => .299 * r + .587 * g + .114 * b;
 let tt; function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(tt); tt = setTimeout(() => el.hidden = true, 3500); }
 const byNr = Object.fromEntries(D.doelen.map(d => [d.nr, d]));
+/** Kaartkleuren {c: rand, t: tint, i: inkt} voor een doel (paars als het een talent is). */
 const palVan = (nr, talent) => talent ? PAL.TALENT : PAL[(byNr[nr] || {}).domein] || PAL.WONEN;
 const FAM = "Atkinson Hyperlegible";
 
@@ -72,7 +106,7 @@ const fontsKlaar = (async () => {
   } catch (e){ console.warn("Lettertype niet geladen", e); }
 })();
 
-// tekst uit Smartschool opkuisen
+/** Tekst uit Smartschool opkuisen: escapes, harde spaties, "J.A.echt" en dubbele spaties. */
 function kuis(s){
   return String(s || "").replace(/\\(['"])/g, "$1").replace(/ /g, " ")
     .replace(/((?:[A-Z]\.){2,})(?=[a-zà-ÿ])/g, "$1 ")   // "J.A.echt" -> "J.A. echt"
@@ -83,6 +117,12 @@ const normDoel = s => kuis(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
   .replace(/[‘’`´]/g, "'").replace(/^(de jongere|de leerling)\s+/, "").replace(/[.\s]+$/, "").replace(/\s+/g, " ").trim();
 const normTekst = s => kuis(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const perOfficieel = new Map(D.doelen.map(d => [normDoel(d.officieel), d.nr]));
+/**
+ * Doelnummer zoeken bij de officiële tekst van een ontwikkelingsdoel (uit Smartschool).
+ * Eerst exact (na normDoel), anders de beste woordovereenkomst (Dice-score, minstens 0,8).
+ * @param {string} t
+ * @returns {number|null}
+ */
 function zoekDoel(t){
   const n = normDoel(t);
   if (perOfficieel.has(n)) return perOfficieel.get(n);
@@ -97,6 +137,7 @@ function zoekDoel(t){
 }
 
 /* ================= toestand ================= */
+/** Huidig schooljaar ("2026-2027"; start in augustus), of het eerste uit SCHOOLJAREN als het er niet in staat. */
 function huidigSchooljaar(){ const n = new Date(), y = n.getFullYear(); const j = n.getMonth() >= 7 ? `${y}-${y + 1}` : `${y - 1}-${y}`; return SCHOOLJAREN.includes(j) ? j : SCHOOLJAREN[0]; }
 const st = {
   ov: null, klas: null, leerling: null, jaar: huidigSchooljaar(),
@@ -107,9 +148,16 @@ const st = {
 let kaartId = 0;
 
 /* ================= stap 1: keuzes ================= */
+/**
+ * HTML van een keuzeknop. label en data moeten al ge-escaped zijn.
+ * @param {string} label  inhoud (HTML)
+ * @param {boolean} gekozen
+ * @param {string} data   data-attribuut(en), bv. 'data-ov="OV1"'
+ */
 function knop(label, gekozen, data, extra = ""){
   return `<button type="button" class="choice ${extra}" aria-pressed="${gekozen}" ${data}>${label}</button>`;
 }
+/** Stap 1 hertekenen: opleidingsvorm, klas, leerling, schooljaar, rapport. */
 function renderKeuzes(){
   $("#ovKeuze").innerHTML = Object.keys(KLASSEN).map(o => knop(o, st.ov === o, `data-ov="${o}"`, "big")).join("");
   $("#klasBlok").hidden = !st.ov;
@@ -151,6 +199,12 @@ dropInp.addEventListener("change", () => { const fs = [...dropInp.files]; dropIn
 dropInp.addEventListener("dragenter", () => dropAlles.classList.add("drag"));
 dropInp.addEventListener("dragleave", () => dropAlles.classList.remove("drag"));
 dropInp.addEventListener("drop", () => dropAlles.classList.remove("drag"));
+/**
+ * Welk soort bestand is dit? PDF = A; docx met "individueel handelingsplan" = B;
+ * docx met alinea's die met "De jongere" beginnen = C.
+ * @param {File} file
+ * @returns {Promise<"A"|"B"|"C"|null>}
+ */
 async function soortVan(file){
   const buf = await file.arrayBuffer(), u8 = new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
   if (u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46) return "A";
@@ -162,6 +216,7 @@ async function soortVan(file){
   if (/^(de jongere|de leerling)\b/im.test(tekst)) return "C";
   return null;
 }
+/** Meerdere bestanden tegelijk: soort herkennen en in de volgorde A, B, C laden. */
 async function laadAlles(files){
   const melding = $("#dropSt"), fouten = [], gekozen = {};
   melding.textContent = "";
@@ -179,6 +234,7 @@ async function laadAlles(files){
   for (const s of ["A", "B", "C"]) if (gekozen[s]) await laad(s, gekozen[s]);
   melding.textContent = fouten.join(" · ");
 }
+/** Statusregel van uploadvak A/B/C zetten. @param {boolean|null} ok  true = gelukt, false = fout, null = bezig */
 function zetStatus(soort, ok, tekst){
   const up = $("#up" + soort);
   up.classList.toggle("done", ok === true); up.classList.toggle("err", ok === false);
@@ -204,6 +260,12 @@ function confetti(el){
     ], {duration: 900 + Math.random() * 400, easing: "cubic-bezier(.2,.7,.4,1)"}).onfinish = () => c.remove();
   }
 }
+/**
+ * Eén bestand lezen als soort A, B of C en in st zetten; vult ook klas/leerling aan als die
+ * nog niet gekozen zijn en het bestand ze levert.
+ * @param {"A"|"B"|"C"} soort
+ * @param {File} file
+ */
 async function laad(soort, file){
   zetStatus(soort, null, "Bezig met lezen…");
   try {
@@ -242,7 +304,13 @@ async function laad(soort, file){
 
 /* ---------- A: doelenfiche (PDF) ---------- */
 // de doelkaartjes-tool zet elk kaartje als aparte JPEG in de PDF: die halen we eruit
+/** Bytes -> string met één teken per byte (zodat indexen gelijk blijven aan byte-posities). */
 function latin1(u8){ let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return s; }
+/**
+ * Alle JPEG-afbeeldingen (DCTDecode-streams) uit een PDF halen, zonder PDF-bibliotheek.
+ * @param {ArrayBuffer} buf
+ * @returns {{bytes: Uint8Array, w: number, h: number}[]}
+ */
 function pdfJpegs(buf){
   const u8 = new Uint8Array(buf), s = latin1(u8), uit = [];
   const re = /(\d+)\s+\d+\s+obj\s*<<((?:(?!endobj)[\s\S])*?)>>\s*stream(\r\n|\n|\r)/g;
@@ -265,6 +333,11 @@ function pdfJpegs(buf){
   return uit;
 }
 const CW = 186, CH = 82, RAND = 4.2;      // kaartje in mm (zoals in de doelkaartjes-tool)
+/**
+ * Doelenfiche (PDF uit de doelkaartjes-tool) lezen: enkel afbeeldingen met de verhouding van
+ * een kaartje worden herkend (koppen van de bladen vallen weg).
+ * @returns {Promise<{kaarten: object[]}>}
+ */
 async function leesDoelenfiche(buf){
   const jpgs = pdfJpegs(buf).filter(j => j.w && j.h && Math.abs(j.w / j.h - CW / CH) < .12);
   if (!jpgs.length) throw new Error("Geen kaartjes gevonden. Gebruik de PDF zoals ze uit de doelkaartjes-tool komt.");
@@ -273,7 +346,13 @@ async function leesDoelenfiche(buf){
   for (const j of jpgs) kaarten.push(await herkenKaart(j));
   return {kaarten};
 }
-// kleur van de rand -> domein of talent; het nummer rechtsboven vergelijken met zelf getekende nummers
+/**
+ * Kleur van de rand -> domein of talent; het nummer rechtsboven vergelijken met zelf getekende
+ * nummers (zelfde font en positie als drawCard in de kaartjes-tool; samen aanpassen!).
+ * @param {{bytes: Uint8Array}} j  JPEG van één kaartje
+ * @returns {Promise<{nr: number, talent: boolean, score: number, bytes: Uint8Array, url: string}>}
+ *          score: overlap (0-1) van het beste nummer; laag = "nummer nakijken"
+ */
 async function herkenKaart(j){
   const blob = new Blob([j.bytes], {type: "image/jpeg"});
   const bmp = await createImageBitmap(blob);
@@ -316,12 +395,14 @@ async function herkenKaart(j){
 /* ---------- Word-bestanden ---------- */
 const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const RNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+/** docx openen. @returns {Promise<{zip: JSZip, doc: XMLDocument}>} doc = word/document.xml */
 async function leesDocx(buf){
   const zip = await JSZip.loadAsync(buf);
   const f = zip.file("word/document.xml"); if (!f) throw new Error("Dit Word-bestand kon niet gelezen worden.");
   const doc = new DOMParser().parseFromString(await f.async("string"), "application/xml");
   return {zip, doc};
 }
+/** Platte tekst van een Word-alinea (w:p), tabs als spatie, regeleindes als \n. */
 function alineaTekst(p){
   let s = "";
   for (const n of p.getElementsByTagNameNS(W, "*")){
@@ -331,7 +412,10 @@ function alineaTekst(p){
   }
   return kuis(s);
 }
-// blokken op het hoogste niveau (alinea of tabel), elk met de alinea's in volgorde
+/**
+ * Blokken op het hoogste niveau (alinea of tabel), elk met de niet-lege alinea's in volgorde.
+ * @returns {{t: string, p: Element}[][]}
+ */
 function blokken(doc){
   const body = doc.getElementsByTagNameNS(W, "body")[0], uit = [];
   for (const el of body.children){
@@ -342,6 +426,11 @@ function blokken(doc){
 }
 
 /* ---------- B: individueel handelingsplan ---------- */
+/**
+ * Individueel handelingsplan lezen: naam van de leerling en per doel (blok met "Doelen, aanpak
+ * en planning") het pad, de beginsituatie, doelstellingen, aanpak, planning en of het een talent is.
+ * @returns {{naam: string, doelen: object[], perNr: Object<number, object>}}
+ */
 function leesHandelingsplan({doc}){
   let naam = "";
   const doelen = [];
@@ -374,6 +463,7 @@ function leesHandelingsplan({doc}){
 
 /* ---------- C: eindrapport ---------- */
 const STATUS_RE = /^(startpunt|doel voldoende beheerst|doel (niet )?bereikt|goede voortgang|in ontwikkeling|onvoldoende( voortgang)?|beperkte voortgang|geen voortgang|nog niet bereikt|niet bereikt|bereikt|beheerst)\b/i;
+/** Evaluatiezin -> kleur van het bolletje ("grijs"|"geel"|"blauw"|"groen"), of null als onbekend. */
 function statusKleur(label){
   const l = label.toLowerCase();
   if (/startpunt|niet|onvoldoende|geen|beperkt/.test(l)) return "grijs";
@@ -382,6 +472,7 @@ function statusKleur(label){
   if (/in ontwikkeling/.test(l)) return "geel";
   return null;
 }
+/** Kleur van het bolletje-afbeeldinkje in alinea p (middelste pixel), als de tekst niets zegt. */
 async function kleurUitAfbeelding(zip, p){
   try {
     const blip = p.getElementsByTagNameNS("*", "blip")[0]; if (!blip) return null;
@@ -400,6 +491,11 @@ async function kleurUitAfbeelding(zip, p){
     return best === "grijs2" ? "grijs" : best;
   } catch { return null; }
 }
+/**
+ * Eindrapport lezen: per doel ("De jongere ...") de doelstellingen, de evaluatie (label, vak
+ * ASV/BGV, kleur) en het commentaar; daarnaast de klas als die in het document staat.
+ * @returns {Promise<{doelen: object[], perNr: Object<number, object>, klas: string|null, ov: string|null}>}
+ */
 async function leesEindrapport({zip, doc}){
   const doelen = [];
   let klas = null, ov = null;
@@ -428,6 +524,12 @@ async function leesEindrapport({zip, doc}){
 }
 
 /* ================= stap 3: koppelen en controleren ================= */
+/**
+ * st.kaarten opnieuw opbouwen na het laden van een bestand: uit de doelenfiche (met prent) of,
+ * zonder doelenfiche, uit het handelingsplan (zonder prent). Handmatige correcties blijven
+ * behouden zolang de bron niet verandert.
+ * @param {"A"|"B"|"C"} soort  welk bestand net geladen werd
+ */
 function bouwKaarten(soort){
   const oud = st.kaarten;
   if (st.A) {
@@ -437,12 +539,14 @@ function bouwKaarten(soort){
       st.kaarten = st.B.doelen.filter(d => d.nr).map(d => ({id: ++kaartId, nr: d.nr, talent: d.talent, score: 1, auto: false, img: null}));
   } else st.kaarten = [];
 }
+/** De kaartjes die in het rapport komen (talent eerst, dan op nummer), met handelingsplan (ihp) en eindrapport (er). */
 function lijst(){
   return st.kaarten.filter(k => !k.weg && byNr[k.nr])
     .sort((a, b) => (b.talent - a.talent) || (a.nr - b.nr))
     .map(k => ({k, d: byNr[k.nr], ihp: st.B && st.B.perNr[k.nr], er: st.C && st.C.perNr[k.nr]}));
 }
 const zelfdeTekst = (a, b) => normTekst(a) === normTekst(b);
+/** Stap 3 hertekenen: meldingen (ontbrekende/dubbele doelen) en per kaartje de koppeling. */
 function renderControle(){
   const sec = $("#controle");
   sec.hidden = !(st.A || st.B || st.C);
@@ -508,18 +612,40 @@ document.addEventListener("click", e => {
 
 /* ================= stap 4: bevindingen en besluit (concept bewaren in deze browser) ================= */
 const conceptKey = () => `rapport-concept|${st.klas}|${st.leerling}|${st.jaar}|${st.rapport}`;
+// true als de huidige inhoud van stap 4 bij een bewaard concept hoort (klas + leerling gekozen);
+// false als ze getypt werd vóór er een leerling gekozen was (nog nergens bewaard)
+let conceptGebonden = false;
+/** Zijn alle velden van stap 4 leeg? */
+const conceptLeeg = () => !$("#asvAan").checked && !$("#bgvAan").checked &&
+  !$("#asv").value.trim() && !$("#bgv").value.trim() && !$("#besluit").value.trim();
+/**
+ * Concept van stap 4 laden voor de huidige keuze (klas, leerling, jaar, rapport). Bestaat er
+ * voor die keuze nog geen concept, dan:
+ *  - blijft tekst die getypt werd vóór er een leerling gekozen was staan, en wordt ze meteen
+ *    onder de nieuwe sleutel bewaard;
+ *  - worden de velden leeggemaakt als ze bij een andere leerling/rapport hoorden (zodat een
+ *    besluit nooit ongemerkt naar een andere leerling meeverhuist).
+ */
 function laadConcept(){
-  let c = {};
-  try { c = JSON.parse(localStorage.getItem(conceptKey()) || "{}"); } catch {}
-  $("#asvAan").checked = !!c.asvAan; $("#bgvAan").checked = !!c.bgvAan;
-  $("#asv").value = c.asv || ""; $("#bgv").value = c.bgv || ""; $("#besluit").value = c.besluit || "";
+  let c = null;
+  try { c = JSON.parse(localStorage.getItem(conceptKey()) || "null"); } catch {}
+  if (c && typeof c === "object"){
+    $("#asvAan").checked = !!c.asvAan; $("#bgvAan").checked = !!c.bgvAan;
+    $("#asv").value = c.asv || ""; $("#bgv").value = c.bgv || ""; $("#besluit").value = c.besluit || "";
+  } else if (conceptGebonden){
+    $("#asvAan").checked = $("#bgvAan").checked = false;
+    $("#asv").value = $("#bgv").value = $("#besluit").value = "";
+  } else if (!conceptLeeg()) bewaarConcept();     // doet niets zolang klas/leerling ontbreken
+  conceptGebonden = !!(st.klas && st.leerling);
   toonBevindingen();
 }
+/** Concept van stap 4 bewaren onder de huidige sleutel (enkel als klas en leerling gekozen zijn). */
 function bewaarConcept(){
   if (!st.klas || !st.leerling) return;
   try { localStorage.setItem(conceptKey(), JSON.stringify({asvAan: $("#asvAan").checked, bgvAan: $("#bgvAan").checked,
     asv: $("#asv").value, bgv: $("#bgv").value, besluit: $("#besluit").value})); } catch {}
 }
+/** ASV/BGV-tekstvakken tonen of verbergen volgens de vinkjes; stap 4 is "ok" als er een besluit is. */
 function toonBevindingen(){
   $("#asvBlok").hidden = !$("#asvAan").checked; $("#bgvBlok").hidden = !$("#bgvAan").checked;
   $("#n4").classList.toggle("ok", !!$("#besluit").value.trim());
@@ -534,13 +660,16 @@ for (const id of ["asvAan", "bgvAan", "asv", "bgv", "besluit"])
 const PW = 210, PH = 297, M = 16, PT = 0.3528;
 const INK = "#26303a", MUTED = "#5d6874", SKY = "#86afcf", LINE = "#d9dfe5";
 const BOVEN = 36, ONDER = PH - 22;
+/** Gegevens voor de PDF: naam, klas, schooljaar en rapport (label/titel/cyclus). */
 const info = () => ({
   naam: st.leerling || "", klas: st.klas || "", jaar: st.jaar, rap: RAPPORTEN[st.rapport],
 });
+/** Bestandsnaam van de PDF, zonder tekens die Windows niet toelaat. */
 function bestandsnaam(){
   const i = info();
   return `${i.naam || "leerling"}_${i.klas || "klas"}_rapport cyclus${i.rap.cyclus}_${i.jaar}.pdf`.replace(/[\\/:*?"<>|]+/g, "-");
 }
+/** Breedte/hoogte-verhouding van een afbeelding (3 als ze niet laadt). @returns {Promise<number>} */
 function logoMaat(dataUrl){ return new Promise(r => { const im = new Image(); im.onload = () => r(im.width / im.height); im.onerror = () => r(3); im.src = dataUrl; }); }
 let VERHOUDING = null;
 const verhoudingenKlaar = (async () => {
@@ -548,12 +677,18 @@ const verhoudingenKlaar = (async () => {
   for (const [k, v] of Object.entries(D.logos)) VERHOUDING[k] = await logoMaat(v);
 })();
 const imgType = u => u.startsWith("data:image/png") ? "PNG" : "JPEG";
+/**
+ * Afbeelding D.logos[k] op hoogte h (mm) in de PDF zetten, met de juiste verhouding.
+ * @param {boolean} rechts  x is de rechterrand i.p.v. de linkerrand
+ * @returns {number} breedte in mm
+ */
 function logo(doc, k, x, y, h, rechts = false){
   const w = h * VERHOUDING[k];
   doc.addImage(D.logos[k], imgType(D.logos[k]), rechts ? x - w : x, y, w, h, "logo-" + k, "FAST");
   return w;
 }
 
+/** Nieuw A4-document (jsPDF, mm) met Atkinson Hyperlegible ingebed als lettertype "AH". */
 function nieuweDoc(){
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({unit: "mm", format: "a4", compress: true});
@@ -567,6 +702,7 @@ const font = (doc, stijl, size, kleur = INK) => { doc.setFont("AH", stijl); doc.
 const lh = size => size * PT * 1.42;
 const asc = size => size * PT * .78;
 
+/** Pagina 1: logo's, titel, naam, klas en schooljaar, adres Styrka. voorbeeld: lege velden tonen een grijze plaatshouder. */
 function voorblad(doc, i, voorbeeld){
   logo(doc, "koers", M, 14, 15);
   logo(doc, "styrka", PW - M, 12, 19, true);
@@ -616,11 +752,13 @@ function parameterPagina(doc){
     doc.text(p.naam, x0 + 16.5, pm + asc(11) / 2 - .1);
   });
 }
+/** Logo's en lijn bovenaan een inhoudspagina. */
 function koptekst(doc){
   logo(doc, "koers", M, 11, 11);
   logo(doc, "styrka", PW - M, 9.5, 14.5, true);
   doc.setDrawColor(SKY); doc.setLineWidth(.4); doc.line(M, 28, PW - M, 28);
 }
+/** Naam/klas links en rapport/schooljaar rechts onderaan een pagina. */
 function voettekst(doc, i){
   const y = PH - 12;
   doc.setDrawColor(LINE); doc.setLineWidth(.3); doc.line(M, y - 5, PW - M, y - 5);
@@ -628,7 +766,10 @@ function voettekst(doc, i){
   doc.text([i.naam, i.klas].filter(Boolean).join("  ·  "), M, y);
   doc.text(`${i.rap.label}  ·  ${i.jaar}`, PW - M, y, {align: "right"});
 }
+// c = {doc, y}: het document en de huidige schrijfhoogte (mm) op de pagina
+/** Nieuwe pagina met koptekst; c.y naar de bovenrand van de inhoud. */
 function nieuwePagina(c){ c.doc.addPage(); koptekst(c.doc); c.y = BOVEN; }
+/** Nieuwe pagina als er geen mm meer vrij is boven de onderrand. */
 function ruimte(c, mm){ if (c.y + mm > ONDER) nieuwePagina(c); }
 // tekst met automatische paginaovergang (per regel)
 function alinea(c, tekst, {x = M, w = PW - 2 * M, size = 9.5, stijl = "normal", kleur = INK, na = 0} = {}){
@@ -640,6 +781,7 @@ function alinea(c, tekst, {x = M, w = PW - 2 * M, size = 9.5, stijl = "normal", 
   }
   c.y += na;
 }
+/** Onderlijnde titel; nodig = ruimte die eronder nog moet passen, anders eerst een nieuwe pagina. */
 function kop(c, tekst, {x = M, size = 10.5, nodig = 14} = {}){
   ruimte(c, lh(size) + nodig);
   const {doc} = c; font(doc, "bold", size, INK);
@@ -648,7 +790,7 @@ function kop(c, tekst, {x = M, size = 10.5, nodig = 14} = {}){
   c.y += lh(size) + 1.2;
 }
 
-// gekleurd kader met dikke rand (zoals een doelkaartje)
+/** Gekleurd kader met dikke rand (zoals een doelkaartje). @returns {number} randdikte in mm */
 function kader(doc, x, y, w, h, kleur){
   const b = w * RAND / CW, r = w * 8 / CW;
   doc.setFillColor(kleur); doc.roundedRect(x, y, w, h, r, r, "F");
@@ -674,6 +816,12 @@ function pijl(doc, x1, x2, ym, kleur){
   doc.triangle(x2 - hl - .2, ym - hh / 2, x2, ym, x2 - hl - .2, ym + hh / 2, "F");
 }
 
+/**
+ * Eén doel in het rapport: links het kaartje, pijl, rechts ontwikkelingsdoel + doelstelling;
+ * daaronder beginsituatie, aanpak en evaluatie. Het hele blok blijft zo mogelijk op één pagina.
+ * @param {{k, d, ihp, er}} item  uit lijst()
+ * @param {boolean} eerste  eerste doel (geen scheidingslijn erboven)
+ */
 function doelBlok(c, {k, d, ihp, er}, eerste){
   const {doc} = c, p = palVan(k.nr, k.talent);
   const GAP = 14, bw = (PW - 2 * M - GAP) / 2, ch = bw * CH / CW;
@@ -762,6 +910,7 @@ function doelBlok(c, {k, d, ihp, er}, eerste){
   c.y += 3;
 }
 
+/** Laatste deel: algemene bevindingen (ASV/BGV), besluit en de vier handtekeningvakken. */
 function slot(c, voorbeeld, i){
   const {doc} = c;
   nieuwePagina(c);
@@ -791,6 +940,11 @@ function slot(c, voorbeeld, i){
   c.y += 2 * zh + gap;
 }
 
+/**
+ * Het volledige rapport opbouwen.
+ * @param {boolean} voorbeeld  true voor het live voorbeeld (plaatshouders voor lege velden)
+ * @returns {Promise<jsPDF>}
+ */
 async function maakPdf(voorbeeld){
   await verhoudingenKlaar;
   const i = info(), doc = nieuweDoc();
@@ -808,7 +962,9 @@ async function maakPdf(voorbeeld){
 
 /* ================= voorbeeld en export ================= */
 let pvTimer, pvUrl, pvBezig = false, pvOpnieuw = false;
+/** Voorbeeld bijwerken, 600 ms na de laatste wijziging. */
 function planVoorbeeld(){ clearTimeout(pvTimer); pvTimer = setTimeout(maakVoorbeeld, 600); }
+/** Voorbeeld-PDF maken en in de iframe tonen; nooit twee tegelijk (een aanvraag tijdens het werk wordt achteraf uitgevoerd). */
 async function maakVoorbeeld(){
   if (pvBezig){ pvOpnieuw = true; return; }
   pvBezig = true; $("#pvState").textContent = "bijwerken…";
@@ -845,6 +1001,7 @@ $("#pdfBtn").addEventListener("click", async () => {
   finally { btn.disabled = false; btn.textContent = "Download PDF"; }
 });
 
+/** Alles hertekenen na een wijziging in de toestand st. */
 function alles(){
   renderKeuzes();
   renderControle();

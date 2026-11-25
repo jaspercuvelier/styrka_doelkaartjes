@@ -1,4 +1,9 @@
 <!doctype html>
+<!--
+  RAPPORT MAKEN  (rapport/app; door maak_site.py ongewijzigd naar site/rapport gekopieerd)
+  Pagina-opbouw en stijl; alle logica en uitleg (data, localStorage, testen) staat bovenaan app.js.
+  Scripts: lib/ (JSZip, jsPDF; lokaal, geen CDN), data.js (gemaakt door rapport/bouw.py), app.js.
+-->
 <html lang="nl">
 <head>
 <meta charset="utf-8">
@@ -231,6 +236,8 @@ textarea.inp{min-height:110px;resize:vertical;line-height:1.45}
 
 <script src="lib/jszip.min.js"></script>
 <script src="lib/jspdf.umd.min.js"></script>
+<!-- CACHE-BUSTING: het ?v=-nummer moet je MANUEEL ophogen telkens je data.js (na python3 bouw.py)
+     of app.js wijzigt; anders blijven browsers de oude versie uit hun cache gebruiken. -->
 <script src="data.js?v=4"></script>
 <script src="app.js?v=7"></script>
 </body>
